@@ -19,19 +19,105 @@ A lightweight macOS menu bar app for speech-to-text transcription using OpenAI-c
 
 ## Install from Release (Recommended)
 
-The fastest way to get started — no build tools needed:
+Step-by-step guide. No developer tools needed.
 
-1. Go to [**Releases**](https://github.com/rbarinov/whisper-app/releases/latest)
-2. Download **WhisperApp-macOS-arm64.zip**
-3. Extract and move `WhisperApp.app` to `~/Applications/` (or `/Applications/`)
-4. **First launch**: right-click the app > **Open** (macOS blocks unsigned apps by default)
-5. Grant **Microphone** and **Accessibility** permissions when prompted
-6. Click the microphone icon in the menu bar > **Settings** > enter your API key
+### Step 1: Download
 
-> **Tip**: For persistent permissions, re-sign the app locally with your Apple Development identity:
-> ```bash
-> codesign --force --sign "Apple Development: Your Name (XXXXXXXXXX)" ~/Applications/WhisperApp.app
-> ```
+1. Open [**Releases**](https://github.com/rbarinov/whisper-app/releases/latest) in your browser
+2. Under **Assets**, click **WhisperApp-macOS-arm64.zip** to download it
+3. The file will appear in your `~/Downloads` folder
+
+### Step 2: Extract
+
+1. Open **Finder**, go to **Downloads**
+2. Double-click `WhisperApp-macOS-arm64.zip` — it will extract into a `WhisperApp.app` file
+3. Drag `WhisperApp.app` into your **Applications** folder (or `~/Applications/`)
+
+### Step 3: Bypass macOS Gatekeeper (IMPORTANT)
+
+macOS blocks apps that are not signed with an Apple Developer ID certificate. You **will** see a warning like _"WhisperApp can't be opened because Apple cannot check it for malicious software"_ or _"WhisperApp is damaged and can't be opened"_. This is normal for self-built apps.
+
+**Option A — Remove quarantine attribute (recommended, one command):**
+
+Open **Terminal** (Spotlight → type "Terminal" → Enter) and run:
+
+```bash
+xattr -cr ~/Applications/WhisperApp.app
+```
+
+If you placed the app in `/Applications/` instead:
+
+```bash
+xattr -cr /Applications/WhisperApp.app
+```
+
+This removes the quarantine flag that macOS adds to downloaded files. After this, the app will open normally.
+
+**Option B — Allow in System Settings (if Option A doesn't work):**
+
+1. Try to open `WhisperApp.app` — it will be blocked with a warning. Click **Done** (or **Cancel**)
+2. Open **System Settings** (Apple menu  → System Settings)
+3. Go to **Privacy & Security** (scroll down in the left sidebar)
+4. Scroll down to the **Security** section
+5. You will see a message: _"WhisperApp was blocked from use because it is not from an identified developer"_
+6. Click **Open Anyway**
+7. Enter your password or use Touch ID
+8. Try opening the app again — this time click **Open** in the dialog
+
+**Option C — Right-click → Open (sometimes works):**
+
+1. In Finder, right-click (or Control-click) on `WhisperApp.app`
+2. Select **Open** from the context menu
+3. A dialog will appear — click **Open**
+
+> **Note**: You may need to repeat Option B after the first attempt. macOS sometimes requires two tries.
+
+### Step 4: Grant Permissions
+
+On first launch, the app needs two permissions:
+
+**Microphone:**
+- macOS will show a popup: _"WhisperApp would like to access the microphone"_
+- Click **OK** / **Allow**
+- If you missed the popup: **System Settings → Privacy & Security → Microphone** → toggle WhisperApp ON
+
+**Accessibility:**
+- The app will show a system prompt asking for Accessibility access
+- Click **Open System Settings** — it will take you to the right place
+- Find **WhisperApp** in the list and toggle it **ON**
+- You may need to click the lock icon and enter your password first
+- If the prompt didn't appear: **System Settings → Privacy & Security → Accessibility** → click **+** → navigate to Applications → select `WhisperApp.app` → click Open
+
+> **After granting Accessibility**: the app may need a restart to pick up the permission. Click the mic icon in the menu bar → **Quit WhisperApp**, then open it again.
+
+### Step 5: Configure
+
+1. Look for a **microphone icon** (🎤) in the **menu bar** (top-right of your screen, near the clock)
+2. Click it → click **Settings**
+3. Fill in:
+   - **Base URL**: leave as `https://api.openai.com` for OpenAI, or enter your custom endpoint
+   - **API Key**: paste your OpenAI API key (starts with `sk-...`)
+   - **Model**: leave as `whisper-1` (or enter your model name)
+   - **Language**: optionally enter a language code like `en`, `ru`, `de` for better accuracy (leave empty for auto-detect)
+4. Close the Settings window
+
+### Step 6: Use
+
+- **Hold F5** → speak → **release F5** → text is transcribed and pasted into the active text field
+- **Double-press F5** → recording starts, **double-press F5 again** → recording stops and text is transcribed
+- A small dark overlay above the Dock shows the current status (recording / transcribing / done)
+
+### Troubleshooting
+
+| Problem | Solution |
+|---------|----------|
+| App won't open, shows "damaged" warning | Run `xattr -cr ~/Applications/WhisperApp.app` in Terminal |
+| App won't open, shows "unidentified developer" | System Settings → Privacy & Security → scroll down → Open Anyway |
+| No mic icon in menu bar | Check Activity Monitor if WhisperApp is running. If not, reopen it |
+| F5 doesn't trigger recording | System Settings → Privacy & Security → Accessibility → make sure WhisperApp is ON. Restart the app after toggling |
+| "Microphone access denied" error | System Settings → Privacy & Security → Microphone → toggle WhisperApp ON |
+| "Network error" on first try | The app retries automatically. Check your API key and Base URL in Settings |
+| "Event tap failed" in Settings | Accessibility permission not granted. Follow Step 4 above |
 
 ---
 
