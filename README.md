@@ -264,26 +264,36 @@ Breaking changes must include `BREAKING CHANGE:` in the commit body or `!` after
 feat(api)!: change transcription endpoint format
 ```
 
-## Releasing a New Version
+## Versioning
 
-The project uses [Semantic Versioning](https://semver.org/) and Git tags to trigger releases.
+This project follows [Semantic Versioning (SemVer)](https://semver.org/).
 
-Version format: `vMAJOR.MINOR.PATCH`
+Version format: **`vMAJOR.MINOR.PATCH`**
 
-| Bump | When | Example |
-|------|------|---------|
-| PATCH | Bug fixes, minor tweaks | `v1.0.0` → `v1.0.1` |
-| MINOR | New features, backward-compatible | `v1.0.1` → `v1.1.0` |
-| MAJOR | Breaking changes | `v1.1.0` → `v2.0.0` |
+### What to bump
 
-To create a release:
+| Part | When | Reset | Example |
+|------|------|-------|---------|
+| **MAJOR** | Breaking changes: API format changed, config file incompatible, removed features | MINOR and PATCH reset to 0 | `v1.2.3` → `v2.0.0` |
+| **MINOR** | New features that are backward-compatible: new setting, new UI element, new hotkey mode | PATCH resets to 0 | `v1.2.3` → `v1.3.0` |
+| **PATCH** | Bug fixes, typo fixes, documentation updates, small tweaks that don't add features | Nothing resets | `v1.2.3` → `v1.2.4` |
+
+### How to decide
+
+- Did you **break** something that worked before? → **MAJOR**
+- Did you **add** something new? → **MINOR**
+- Did you **fix** or **improve** something existing? → **PATCH**
+
+### How to release
+
+1. Make sure all changes are committed and pushed to `main`
+2. Determine the next version (check current: `git tag --list`)
+3. Create and push the tag:
 
 ```bash
-# Tag the current commit
-git tag v1.0.0
-
-# Push the tag — this triggers the release workflow
-git push origin v1.0.0
+# Example: releasing a patch fix
+git tag v1.0.1
+git push origin v1.0.1
 ```
 
 GitHub Actions will automatically:
@@ -293,11 +303,11 @@ GitHub Actions will automatically:
 
 The release will appear at [github.com/rbarinov/whisper-app/releases](https://github.com/rbarinov/whisper-app/releases).
 
-To list existing tags:
+### Version history
 
-```bash
-git tag --list
-```
+| Version | Date | Type | Description |
+|---------|------|------|-------------|
+| `v1.0.0` | 2026-02-19 | Initial | First release |
 
 ## Architecture
 
