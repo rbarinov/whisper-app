@@ -142,6 +142,41 @@ Open Settings from the menu bar icon:
 | Language | ISO-639-1 code (`en`, `ru`, `de`, etc.) | auto-detect |
 | Hotkey | Key to trigger recording | F5 |
 
+## Releasing a New Version
+
+The project uses [Semantic Versioning](https://semver.org/) and Git tags to trigger releases.
+
+Version format: `vMAJOR.MINOR.PATCH`
+
+| Bump | When | Example |
+|------|------|---------|
+| PATCH | Bug fixes, minor tweaks | `v1.0.0` → `v1.0.1` |
+| MINOR | New features, backward-compatible | `v1.0.1` → `v1.1.0` |
+| MAJOR | Breaking changes | `v1.1.0` → `v2.0.0` |
+
+To create a release:
+
+```bash
+# Tag the current commit
+git tag v1.0.0
+
+# Push the tag — this triggers the release workflow
+git push origin v1.0.0
+```
+
+GitHub Actions will automatically:
+1. Build the app on an Apple Silicon runner
+2. Package `WhisperApp.app` into a ZIP
+3. Create a GitHub Release with the ZIP attached and auto-generated release notes
+
+The release will appear at [github.com/rbarinov/whisper-app/releases](https://github.com/rbarinov/whisper-app/releases).
+
+To list existing tags:
+
+```bash
+git tag --list
+```
+
 ## Architecture
 
 ```
