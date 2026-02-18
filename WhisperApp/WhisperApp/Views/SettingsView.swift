@@ -79,7 +79,7 @@ struct SettingsView: View {
                         Text("Hold the key to record (release to transcribe)")
                             .font(.caption)
                             .foregroundColor(.secondary)
-                        Text("Double-press to toggle recording on/off")
+                        Text("Double-press to start recording, single press to stop")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }

@@ -254,20 +254,25 @@ class HotkeyManager: ObservableObject {
         guard !keyIsDown else { return }
         keyIsDown = true
 
-        let now = Date()
-
-        if let last = lastKeyDownTime, now.timeIntervalSince(last) < doublePressThreshold {
+        // If toggle recording is active, any single press stops it immediately
+        if isToggleRecording {
             holdTimer?.cancel()
             holdTimer = nil
             lastKeyDownTime = nil
+            isToggleRecording = false
+            onAction?(.toggleOff)
+            return
+        }
 
-            if isToggleRecording {
-                isToggleRecording = false
-                onAction?(.toggleOff)
-            } else {
-                isToggleRecording = true
-                onAction?(.toggleOn)
-            }
+        let now = Date()
+
+        if let last = lastKeyDownTime, now.timeIntervalSince(last) < doublePressThreshold {
+            // Double-press detected — start toggle recording
+            holdTimer?.cancel()
+            holdTimer = nil
+            lastKeyDownTime = nil
+            isToggleRecording = true
+            onAction?(.toggleOn)
         } else {
             lastKeyDownTime = now
 

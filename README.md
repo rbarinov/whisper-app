@@ -104,7 +104,7 @@ On first launch, the app needs two permissions:
 ### Step 6: Use
 
 - **Hold F5** → speak → **release F5** → text is transcribed and pasted into the active text field
-- **Double-press F5** → recording starts, **double-press F5 again** → recording stops and text is transcribed
+- **Double-press F5** → recording starts, **press F5 once** → recording stops and text is transcribed
 - A small dark overlay above the Dock shows the current status (recording / transcribing / done)
 
 ### Troubleshooting
@@ -189,7 +189,7 @@ Click the microphone icon in the menu bar, then **Settings**:
 ### 7. Use
 
 - **Hold F5** — start recording, release to transcribe and auto-paste
-- **Double-press F5** — toggle recording on/off (for longer dictation)
+- **Double-press F5** — start toggle recording (for longer dictation), **press F5 once** to stop and transcribe
 - A floating indicator above the Dock shows the current status
 
 ### Updating
@@ -227,6 +227,42 @@ Open Settings from the menu bar icon:
 | Model | Whisper model name | `whisper-1` |
 | Language | ISO-639-1 code (`en`, `ru`, `de`, etc.) | auto-detect |
 | Hotkey | Key to trigger recording | F5 |
+
+## Contributing
+
+This project follows [Conventional Commits](https://www.conventionalcommits.org/). Every commit message **must** use this format:
+
+```
+<type>(<scope>): <description>
+```
+
+| Type | When to use |
+|------|------------|
+| `feat` | New feature |
+| `fix` | Bug fix |
+| `docs` | Documentation only |
+| `style` | Formatting, no code change |
+| `refactor` | Code change that neither fixes a bug nor adds a feature |
+| `perf` | Performance improvement |
+| `test` | Adding or updating tests |
+| `build` | Build system or CI changes |
+| `chore` | Maintenance, dependencies, etc. |
+
+Scope is optional. Examples:
+
+```
+feat(overlay): add floating recording indicator
+fix(hotkey): single press to stop toggle recording
+docs(readme): add installation guide
+build(ci): add GitHub Actions release workflow
+chore: update .gitignore
+```
+
+Breaking changes must include `BREAKING CHANGE:` in the commit body or `!` after the type:
+
+```
+feat(api)!: change transcription endpoint format
+```
 
 ## Releasing a New Version
 
