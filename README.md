@@ -17,44 +17,100 @@ A lightweight macOS menu bar app for speech-to-text transcription using OpenAI-c
 - **Retry with backoff** — network requests retry up to 3 times on transient failures
 - **Persistent settings** — all configuration and history stored as JSON in `~/Library/Application Support/WhisperApp/`
 
-## Requirements
+## Quick Start
 
-- macOS 13.0+ (Ventura or later)
-- Apple Silicon or Intel Mac
-- Xcode Command Line Tools with Swift (no Xcode.app required)
-- An OpenAI API key (or compatible endpoint)
+### 1. Download
 
-## Building
+```bash
+git clone git@github.com:rbarinov/whisper-app.git
+cd whisper-app
+```
 
-The project builds with `swiftc` directly — no Xcode.app needed:
+Or download as ZIP from GitHub and extract.
+
+### 2. Prerequisites
+
+- **macOS 13.0+** (Ventura or later)
+- **Apple Silicon or Intel Mac**
+- **Xcode Command Line Tools** — install if you don't have them:
+  ```bash
+  xcode-select --install
+  ```
+  This provides the Swift compiler. Full Xcode.app is **not** required.
+- **OpenAI API key** (or any OpenAI-compatible Whisper endpoint)
+
+### 3. Build & Install
 
 ```bash
 chmod +x build.sh
 ./build.sh
 ```
 
-This will:
-1. Compile all Swift sources targeting `arm64-apple-macosx13.0`
-2. Create `WhisperApp.app` bundle with Info.plist and entitlements
-3. Code-sign with your Apple Development identity (falls back to ad-hoc if none found)
+The build script will:
+1. Compile all Swift sources for your architecture
+2. Create the `WhisperApp.app` bundle
+3. Sign the app with your Apple Development identity (if available; falls back to ad-hoc)
 4. Install to `~/Applications/WhisperApp.app`
 
-To run after building:
+> **Tip**: If you have an Apple Developer account enrolled in the Apple Developer Program, the build script will automatically find and use your signing identity. This lets macOS remember permissions across rebuilds. Without it, ad-hoc signing works but you may need to re-grant Accessibility and Microphone permissions after each rebuild.
+
+### 4. Launch
 
 ```bash
 open ~/Applications/WhisperApp.app
 ```
 
-## Permissions
+A microphone icon will appear in your menu bar.
 
-On first launch, the app will request:
+### 5. Grant Permissions
 
-- **Microphone** — needed to record audio for transcription
-- **Accessibility** — needed for the global hotkey (CGEvent tap) and simulated Cmd+V paste
+On first launch, macOS will prompt for two permissions:
 
-Grant both in **System Settings > Privacy & Security**.
+| Permission | Why | Where to grant |
+|---|---|---|
+| **Microphone** | Record speech for transcription | System Settings > Privacy & Security > Microphone |
+| **Accessibility** | Global hotkey capture + auto-paste | System Settings > Privacy & Security > Accessibility |
 
-> **Note**: Ad-hoc signed builds cause macOS to forget permissions on every rebuild. The build script automatically uses a real Apple Development identity if available to avoid this.
+If the prompts don't appear automatically, open **Settings** from the menu bar icon and click **Grant** / **Retry**.
+
+### 6. Configure
+
+Click the microphone icon in the menu bar, then **Settings**:
+
+1. Enter your **API Base URL** (default: `https://api.openai.com`)
+2. Enter your **API Key**
+3. Optionally set a **Language** code (e.g. `en`, `ru`, `de`) for better accuracy
+4. Click **Change** to reassign the hotkey, or leave it as F5
+
+### 7. Use
+
+- **Hold F5** — start recording, release to transcribe and auto-paste
+- **Double-press F5** — toggle recording on/off (for longer dictation)
+- A floating indicator above the Dock shows the current status
+
+### Updating
+
+To update to a newer version:
+
+```bash
+cd whisper-app
+git pull
+./build.sh
+```
+
+Your settings and history are preserved in `~/Library/Application Support/WhisperApp/`.
+
+### Uninstalling
+
+```bash
+# Remove the app
+rm -rf ~/Applications/WhisperApp.app
+
+# Remove settings and history (optional)
+rm -rf ~/Library/Application\ Support/WhisperApp
+```
+
+Then remove WhisperApp from **System Settings > Privacy & Security > Accessibility** and **Microphone**.
 
 ## Configuration
 
