@@ -121,6 +121,217 @@ On first launch, the app needs two permissions:
 
 ---
 
+## Automated Installation (for AI Agents)
+
+This section is a precise, copy-paste-ready protocol for AI agents (Claude, ChatGPT, Cursor, etc.) to install WhisperApp on a user's Mac. Every step has a verification command. Do not skip verifications.
+
+### Prerequisites Check
+
+Run these commands first. If any check fails, fix it before proceeding.
+
+```bash
+# Check macOS version (must be 13.0+)
+sw_vers -productVersion
+# Expected: 13.x, 14.x, 15.x or higher
+
+# Check architecture
+uname -m
+# Expected: arm64 (Apple Silicon) or x86_64 (Intel)
+
+# Check if curl is available
+which curl
+# Expected: /usr/bin/curl
+
+# Check if unzip is available
+which unzip
+# Expected: /usr/bin/unzip
+```
+
+### Step 1: Create target directory
+
+```bash
+mkdir -p ~/Applications
+```
+
+### Step 2: Download latest release
+
+```bash
+# Get the latest release download URL
+DOWNLOAD_URL=$(curl -s https://api.github.com/repos/rbarinov/whisper-app/releases/latest \
+  | grep "browser_download_url.*arm64.zip" \
+  | cut -d '"' -f 4)
+
+# Download the ZIP
+curl -L -o /tmp/WhisperApp.zip "$DOWNLOAD_URL"
+```
+
+**Verify:**
+```bash
+ls -la /tmp/WhisperApp.zip
+# Expected: file exists, size > 500KB
+```
+
+### Step 3: Extract and install
+
+```bash
+# Remove old version if present
+rm -rf ~/Applications/WhisperApp.app
+
+# Extract
+unzip -o /tmp/WhisperApp.zip -d ~/Applications/
+
+# Clean up
+rm /tmp/WhisperApp.zip
+```
+
+**Verify:**
+```bash
+ls ~/Applications/WhisperApp.app/Contents/MacOS/WhisperApp
+# Expected: file exists
+file ~/Applications/WhisperApp.app/Contents/MacOS/WhisperApp
+# Expected: Mach-O 64-bit executable arm64
+```
+
+### Step 4: Remove quarantine attribute
+
+This is **critical**. Without this, macOS will block the app completely.
+
+```bash
+xattr -cr ~/Applications/WhisperApp.app
+```
+
+**Verify:**
+```bash
+xattr ~/Applications/WhisperApp.app
+# Expected: no output (no attributes remaining)
+```
+
+### Step 5: Write settings (optional)
+
+If the user has provided an API key, pre-configure it so the app is ready to use immediately.
+
+```bash
+# Create settings directory
+mkdir -p ~/Library/Application\ Support/WhisperApp
+
+# Write settings JSON (replace values as needed)
+cat > ~/Library/Application\ Support/WhisperApp/settings.json << 'SETTINGS_EOF'
+{
+  "apiBaseURL": "https://api.openai.com",
+  "apiKey": "REPLACE_WITH_API_KEY",
+  "modelName": "whisper-1",
+  "language": "",
+  "hotkeyConfig": {
+    "keyCode": 176,
+    "keyName": "F5"
+  }
+}
+SETTINGS_EOF
+```
+
+If the user specifies a language (e.g., `ru`, `en`, `de`), set `"language": "ru"` in the JSON.
+
+If the user specifies a custom API endpoint, set `"apiBaseURL"` accordingly.
+
+**Verify:**
+```bash
+cat ~/Library/Application\ Support/WhisperApp/settings.json | python3 -m json.tool
+# Expected: valid JSON with the correct values
+```
+
+### Step 6: Launch the app
+
+```bash
+open ~/Applications/WhisperApp.app
+```
+
+**Verify:**
+```bash
+sleep 2
+pgrep -x WhisperApp
+# Expected: a process ID (number). If empty, the app failed to start.
+```
+
+### Step 7: Guide the user through permissions
+
+The app requires two macOS permissions that **cannot** be granted programmatically. You must instruct the user to do these manually.
+
+**Tell the user:**
+
+> WhisperApp is now running (look for the microphone icon in the menu bar at the top-right of your screen).
+>
+> You need to grant two permissions:
+>
+> **1. Microphone** — a popup should appear automatically. Click "Allow".
+> If no popup appeared: open **System Settings → Privacy & Security → Microphone** → toggle WhisperApp ON.
+>
+> **2. Accessibility** — open **System Settings → Privacy & Security → Accessibility** → find WhisperApp → toggle it ON. You may need to click the lock icon and enter your password.
+>
+> After granting Accessibility, quit and reopen the app:
+> - Click the microphone icon in the menu bar → Quit WhisperApp
+> - Then run: `open ~/Applications/WhisperApp.app`
+>
+> To use: **hold F5** to record, **release F5** to transcribe. The text will be pasted into whatever text field is active.
+
+### Step 8: Verify end-to-end
+
+After the user has granted permissions and restarted the app:
+
+```bash
+# Check the app is running
+pgrep -x WhisperApp
+# Expected: process ID
+
+# Check settings were loaded
+cat ~/Library/Application\ Support/WhisperApp/settings.json | python3 -m json.tool
+# Expected: valid JSON with API key filled in
+```
+
+### Error Recovery
+
+If the app won't start (no process after `open`):
+```bash
+# Check if macOS quarantine is blocking it
+xattr ~/Applications/WhisperApp.app
+# If any output appears, run: xattr -cr ~/Applications/WhisperApp.app
+
+# Try launching from terminal to see errors
+~/Applications/WhisperApp.app/Contents/MacOS/WhisperApp &
+```
+
+If "Event tap failed" in Settings:
+```bash
+# Accessibility not granted. Tell the user:
+# System Settings → Privacy & Security → Accessibility → toggle WhisperApp ON
+# Then restart the app
+```
+
+If "Microphone access denied":
+```bash
+# Tell the user:
+# System Settings → Privacy & Security → Microphone → toggle WhisperApp ON
+# Then restart the app
+```
+
+### Quick One-Liner (for experienced agents)
+
+If you want to do everything in one block:
+
+```bash
+mkdir -p ~/Applications && \
+DOWNLOAD_URL=$(curl -s https://api.github.com/repos/rbarinov/whisper-app/releases/latest | grep "browser_download_url.*arm64.zip" | cut -d '"' -f 4) && \
+curl -L -o /tmp/WhisperApp.zip "$DOWNLOAD_URL" && \
+rm -rf ~/Applications/WhisperApp.app && \
+unzip -o /tmp/WhisperApp.zip -d ~/Applications/ && \
+rm /tmp/WhisperApp.zip && \
+xattr -cr ~/Applications/WhisperApp.app && \
+echo "Installation complete. Run: open ~/Applications/WhisperApp.app"
+```
+
+Then tell the user to grant Microphone and Accessibility permissions.
+
+---
+
 ## Build from Source
 
 ### 1. Download
