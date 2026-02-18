@@ -17,7 +17,25 @@ A lightweight macOS menu bar app for speech-to-text transcription using OpenAI-c
 - **Retry with backoff** — network requests retry up to 3 times on transient failures
 - **Persistent settings** — all configuration and history stored as JSON in `~/Library/Application Support/WhisperApp/`
 
-## Quick Start
+## Install from Release (Recommended)
+
+The fastest way to get started — no build tools needed:
+
+1. Go to [**Releases**](https://github.com/rbarinov/whisper-app/releases/latest)
+2. Download **WhisperApp-macOS-arm64.zip**
+3. Extract and move `WhisperApp.app` to `~/Applications/` (or `/Applications/`)
+4. **First launch**: right-click the app > **Open** (macOS blocks unsigned apps by default)
+5. Grant **Microphone** and **Accessibility** permissions when prompted
+6. Click the microphone icon in the menu bar > **Settings** > enter your API key
+
+> **Tip**: For persistent permissions, re-sign the app locally with your Apple Development identity:
+> ```bash
+> codesign --force --sign "Apple Development: Your Name (XXXXXXXXXX)" ~/Applications/WhisperApp.app
+> ```
+
+---
+
+## Build from Source
 
 ### 1. Download
 
@@ -26,7 +44,7 @@ git clone git@github.com:rbarinov/whisper-app.git
 cd whisper-app
 ```
 
-Or download as ZIP from GitHub and extract.
+Or download the source as ZIP from GitHub and extract.
 
 ### 2. Prerequisites
 
