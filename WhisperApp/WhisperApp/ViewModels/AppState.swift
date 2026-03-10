@@ -18,6 +18,7 @@ class AppState: ObservableObject {
 
     @Published var recordingState: RecordingState = .idle
     @Published var history: [TranscriptionEntry] = []
+    @Published var isMicrophoneGranted = false
 
     let recorder = AudioRecorder()
     let hotkeyManager = HotkeyManager.shared
@@ -69,20 +70,31 @@ class AppState: ObservableObject {
     }
 
     func setup() {
+        // Request microphone permission first — this triggers a system dialog on first launch.
+        // The completion handler updates isMicrophoneGranted asynchronously.
         requestMicrophonePermission()
+
+        // Start hotkey manager — this checks accessibility permission and either starts the
+        // event tap immediately (if already granted) or begins polling until the user grants it.
         hotkeyManager.start()
     }
 
-    private func requestMicrophonePermission() {
+    func requestMicrophonePermission() {
         switch AVCaptureDevice.authorizationStatus(for: .audio) {
         case .authorized:
-            break
+            isMicrophoneGranted = true
         case .notDetermined:
-            AVCaptureDevice.requestAccess(for: .audio) { _ in }
-        case .denied, .restricted:
-            DispatchQueue.main.async {
-                self.recordingState = .error("Microphone access denied. Enable in System Settings > Privacy > Microphone.")
+            AVCaptureDevice.requestAccess(for: .audio) { [weak self] granted in
+                DispatchQueue.main.async {
+                    self?.isMicrophoneGranted = granted
+                    if !granted {
+                        self?.recordingState = .error("Microphone access denied. Enable in System Settings > Privacy > Microphone.")
+                    }
+                }
             }
+        case .denied, .restricted:
+            isMicrophoneGranted = false
+            recordingState = .error("Microphone access denied. Enable in System Settings > Privacy > Microphone.")
         @unknown default:
             break
         }
@@ -103,7 +115,9 @@ class AppState: ObservableObject {
 
     func startRecording() {
         guard recordingState != .recording else { return }
-        guard AVCaptureDevice.authorizationStatus(for: .audio) == .authorized else {
+        let micStatus = AVCaptureDevice.authorizationStatus(for: .audio)
+        isMicrophoneGranted = micStatus == .authorized
+        guard micStatus == .authorized else {
             recordingState = .error("Microphone access not granted.")
             overlay.show(state: .error("Microphone access not granted"))
             return

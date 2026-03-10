@@ -2,12 +2,12 @@
 
 import SwiftUI
 
-// Force setup as early as possible using a static initializer
+// Force setup as early as possible using a static initializer.
+// Runs synchronously on the main thread — no async dispatch, so permission
+// prompts appear deterministically at first launch.
 private enum Bootstrap {
     static let shared: Void = {
-        DispatchQueue.main.async {
-            AppState.shared.setup()
-        }
+        AppState.shared.setup()
     }()
 }
 

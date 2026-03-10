@@ -29,6 +29,9 @@ class HotkeyManager: ObservableObject {
     private var tapRunLoop: CFRunLoop?
     private var tapThread: Thread?
 
+    /// Timer that polls accessibility trust status until granted, then auto-starts the event tap.
+    private var accessibilityPollTimer: DispatchSourceTimer?
+
     // State machine (all accessed on main thread only)
     private var keyIsDown = false
     private var isToggleRecording = false
@@ -72,9 +75,9 @@ class HotkeyManager: ObservableObject {
         UInt16(kVK_F12): 0,   // Volume Up
     ]
 
-    func checkAccessibility() {
+    func checkAccessibility(prompt: Bool = true) {
         let trusted = AXIsProcessTrusted()
-        if !trusted {
+        if !trusted && prompt {
             let opts = [kAXTrustedCheckOptionPrompt.takeUnretainedValue(): true] as CFDictionary
             _ = AXIsProcessTrustedWithOptions(opts)
         }
@@ -82,11 +85,45 @@ class HotkeyManager: ObservableObject {
     }
 
     func start() {
-        checkAccessibility()
-        startEventTapOnBackgroundThread()
+        checkAccessibility(prompt: true)
+
+        if isAccessibilityGranted {
+            // Already trusted — start event tap immediately
+            startEventTapOnBackgroundThread()
+        } else {
+            // Not yet trusted — poll until the user grants accessibility, then start
+            startAccessibilityPolling()
+        }
+    }
+
+    // MARK: - Accessibility polling
+
+    /// Polls `AXIsProcessTrusted()` every 1 second until granted, then starts the event tap.
+    private func startAccessibilityPolling() {
+        stopAccessibilityPolling()
+
+        let timer = DispatchSource.makeTimerSource(queue: .main)
+        timer.schedule(deadline: .now() + 1, repeating: 1.0)
+        timer.setEventHandler { [weak self] in
+            guard let self = self else { return }
+            let trusted = AXIsProcessTrusted()
+            self.isAccessibilityGranted = trusted
+            if trusted {
+                self.stopAccessibilityPolling()
+                self.startEventTapOnBackgroundThread()
+            }
+        }
+        accessibilityPollTimer = timer
+        timer.resume()
+    }
+
+    private func stopAccessibilityPolling() {
+        accessibilityPollTimer?.cancel()
+        accessibilityPollTimer = nil
     }
 
     func stop() {
+        stopAccessibilityPolling()
         stopEventTap()
     }
 

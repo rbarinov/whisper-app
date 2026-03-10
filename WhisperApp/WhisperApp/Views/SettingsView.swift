@@ -125,6 +125,19 @@ struct SettingsView: View {
 
                 Section("Permissions") {
                     HStack {
+                        Image(systemName: AppState.shared.isMicrophoneGranted ? "checkmark.circle.fill" : "xmark.circle.fill")
+                            .foregroundColor(AppState.shared.isMicrophoneGranted ? .green : .red)
+                        Text("Microphone")
+                        Spacer()
+                        if !AppState.shared.isMicrophoneGranted {
+                            Button("Grant") {
+                                AppState.shared.requestMicrophonePermission()
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                    }
+
+                    HStack {
                         Image(systemName: HotkeyManager.shared.isAccessibilityGranted ? "checkmark.circle.fill" : "xmark.circle.fill")
                             .foregroundColor(HotkeyManager.shared.isAccessibilityGranted ? .green : .red)
                         Text("Accessibility")
