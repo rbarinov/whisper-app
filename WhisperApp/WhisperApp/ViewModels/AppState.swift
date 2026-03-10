@@ -25,6 +25,7 @@ class AppState: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private let historyFileURL: URL
     private let overlay = OverlayWindowManager.shared
+    private var transcriptionTask: Task<Void, Never>?
 
     private init() {
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
@@ -48,6 +49,12 @@ class AppState: ObservableObject {
         // Handle hotkey actions
         hotkeyManager.onAction = { [weak self] action in
             self?.handleHotkeyAction(action)
+        }
+
+        // Allow Escape to cancel transcription in progress
+        hotkeyManager.shouldCancelOnEscape = { [weak self] in
+            guard let self = self else { return false }
+            return self.recordingState == .recording || self.recordingState == .transcribing
         }
 
         // Auto-setup on init
@@ -82,6 +89,30 @@ class AppState: ObservableObject {
             startRecording()
         case .holdEnd, .toggleOff:
             stopRecordingAndTranscribe()
+        case .cancel:
+            cancelRecording()
+        }
+    }
+
+    func cancelRecording() {
+        switch recordingState {
+        case .recording:
+            // Cancel active recording — stop mic, delete temp file
+            if let (url, _) = recorder.stopRecording() {
+                try? FileManager.default.removeItem(at: url)
+            }
+            recordingState = .idle
+            overlay.show(state: .cancelled)
+
+        case .transcribing:
+            // Cancel in-flight transcription
+            transcriptionTask?.cancel()
+            transcriptionTask = nil
+            recordingState = .idle
+            overlay.show(state: .cancelled)
+
+        default:
+            break
         }
     }
 
@@ -102,10 +133,13 @@ class AppState: ObservableObject {
         recordingState = .transcribing
         overlay.show(state: .transcribing)
 
-        Task {
+        transcriptionTask = Task {
             do {
                 let text = try await TranscriptionService.shared.transcribe(audioFileURL: url)
                 await MainActor.run {
+                    // If cancelled while awaiting, discard the result
+                    guard !Task.isCancelled, self.recordingState == .transcribing else { return }
+
                     let entry = TranscriptionEntry(text: text, durationSeconds: duration)
                     self.history.insert(entry, at: 0)
                     self.saveHistory()
@@ -119,6 +153,9 @@ class AppState: ObservableObject {
                 }
             } catch {
                 await MainActor.run {
+                    // Don't show error if we cancelled intentionally
+                    guard !Task.isCancelled, self.recordingState == .transcribing else { return }
+
                     self.recordingState = .error(error.localizedDescription)
                     self.overlay.show(state: .error(error.localizedDescription))
                 }

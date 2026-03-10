@@ -10,6 +10,7 @@ enum HotkeyAction {
     case holdEnd
     case toggleOn
     case toggleOff
+    case cancel
 }
 
 class HotkeyManager: ObservableObject {
@@ -20,6 +21,9 @@ class HotkeyManager: ObservableObject {
     @Published var lastEventDebug: String = ""
 
     var onAction: ((HotkeyAction) -> Void)?
+    /// Called on the main thread to check if Escape should trigger cancellation
+    /// (e.g. when transcribing). Return true to consume Escape and fire .cancel.
+    var shouldCancelOnEscape: (() -> Bool)?
 
     private var eventTap: CFMachPort?
     private var tapRunLoop: CFRunLoop?
@@ -194,11 +198,37 @@ class HotkeyManager: ObservableObject {
 
     // MARK: - Normal key events
 
+    private static let escapeKeyCode: UInt16 = 53
+
     private func handleNormalKeyEvent(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
         let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
 
         DispatchQueue.main.async {
             self.lastEventDebug = "\(type == .keyDown ? "keyDown" : "keyUp") code=\(keyCode)"
+        }
+
+        // Escape cancels active recording or in-flight transcription
+        if keyCode == Self.escapeKeyCode && type == .keyDown {
+            var shouldCancel = false
+            DispatchQueue.main.sync {
+                if self.isToggleRecording {
+                    shouldCancel = true
+                } else if let check = self.shouldCancelOnEscape, check() {
+                    shouldCancel = true
+                }
+            }
+            if shouldCancel {
+                DispatchQueue.main.async {
+                    self.isToggleRecording = false
+                    self.keyIsDown = false
+                    self.holdTimer?.cancel()
+                    self.holdTimer = nil
+                    self.lastKeyDownTime = nil
+                    self.onAction?(.cancel)
+                }
+                return nil // consume Escape
+            }
+            return Unmanaged.passRetained(event) // pass through if nothing to cancel
         }
 
         guard keyCode == targetKeyCode else {

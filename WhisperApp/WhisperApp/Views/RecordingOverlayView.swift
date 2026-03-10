@@ -10,6 +10,7 @@ enum OverlayState: Equatable {
     case transcribing
     case done(String)
     case error(String)
+    case cancelled
 }
 
 // MARK: - Observable state for the overlay (avoids replacing rootView)
@@ -52,7 +53,7 @@ struct RecordingOverlayView: View {
     @ViewBuilder
     private var content: some View {
         switch model.state {
-        case .recording, .transcribing, .error:
+        case .recording, .transcribing, .error, .cancelled:
             compactContent
         case .done:
             doneContent
@@ -110,6 +111,15 @@ struct RecordingOverlayView: View {
                     .lineLimit(1)
                     .truncationMode(.tail)
 
+            case .cancelled:
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundColor(.gray.opacity(0.8))
+                    .font(.system(size: 8))
+
+                Text("Cancelled")
+                    .font(.system(size: 10, weight: .regular))
+                    .foregroundColor(.white.opacity(0.8))
+
             default:
                 EmptyView()
             }
@@ -143,6 +153,7 @@ struct RecordingOverlayView: View {
         case .recording: return .red.opacity(0.4)
         case .done: return .green.opacity(0.4)
         case .error: return .orange.opacity(0.4)
+        case .cancelled: return .gray.opacity(0.4)
         default: return .white.opacity(0.15)
         }
     }
@@ -175,11 +186,13 @@ class OverlayWindowManager {
         panel?.alphaValue = 1
         panel?.orderFront(nil)
 
-        // Auto-dismiss "done" and "error" states
+        // Auto-dismiss transient states
         if case .done = state {
             scheduleDismiss(after: 3.0)
         } else if case .error = state {
             scheduleDismiss(after: 5.0)
+        } else if case .cancelled = state {
+            scheduleDismiss(after: 1.5)
         }
     }
 
