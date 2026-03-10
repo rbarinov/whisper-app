@@ -142,14 +142,8 @@ class AppState: ObservableObject {
 
                 // Check cancellation after Whisper completes
                 guard !Task.isCancelled else { return }
-                var shouldContinue = true
-                await MainActor.run {
-                    guard self.recordingState == .transcribing else {
-                        shouldContinue = false
-                        return
-                    }
-                }
-                guard shouldContinue else { return }
+                let isStillTranscribing = await MainActor.run { self.recordingState == .transcribing }
+                guard isStillTranscribing else { return }
 
                 // LLM post-processing (if enabled)
                 if self.settings.llmPostProcessingEnabled {
