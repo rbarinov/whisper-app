@@ -20,3 +20,6 @@ whisperapp_debug.log
 
 # App data (user settings/history)
 *.json.bak
+
+.opencode/plans
+.opencode/sessions
