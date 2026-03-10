@@ -115,31 +115,32 @@ class AppSettings: ObservableObject {
     // MARK: - Published properties
 
     @Published var apiBaseURL: String {
-        didSet { save() }
+        didSet { guard !isLoading else { return }; save() }
     }
     @Published var apiKey: String {
-        didSet { save() }
+        didSet { guard !isLoading else { return }; save() }
     }
     @Published var modelName: String {
-        didSet { save() }
+        didSet { guard !isLoading else { return }; save() }
     }
     @Published var language: String {
-        didSet { save() }
+        didSet { guard !isLoading else { return }; save() }
     }
     @Published var hotkeyConfig: HotkeyConfig {
-        didSet { save() }
+        didSet { guard !isLoading else { return }; save() }
     }
     @Published var llmPostProcessingEnabled: Bool {
-        didSet { save() }
+        didSet { guard !isLoading else { return }; save() }
     }
     @Published var llmModelName: String {
-        didSet { save() }
+        didSet { guard !isLoading else { return }; save() }
     }
     @Published var llmSystemPrompt: String {
-        didSet { save() }
+        didSet { guard !isLoading else { return }; save() }
     }
 
     private let fileURL: URL
+    private var isLoading = false
 
     private init() {
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
@@ -173,6 +174,8 @@ class AppSettings: ObservableObject {
     private func load() {
         guard let data = try? Data(contentsOf: fileURL),
               let settings = try? JSONDecoder().decode(SettingsData.self, from: data) else { return }
+        isLoading = true
+        defer { isLoading = false }
         self.apiBaseURL = settings.apiBaseURL
         self.apiKey = settings.apiKey
         self.modelName = settings.modelName ?? Self.defaultModelName

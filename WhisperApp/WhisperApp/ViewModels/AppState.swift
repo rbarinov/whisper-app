@@ -66,11 +66,6 @@ class AppState: ObservableObject {
             guard let self = self else { return false }
             return self.recordingState == .recording || self.recordingState == .transcribing || self.recordingState == .processing
         }
-
-        // Auto-setup on init
-        DispatchQueue.main.async { [weak self] in
-            self?.setup()
-        }
     }
 
     func setup() {
@@ -248,38 +243,69 @@ class AppState: ObservableObject {
 
     func retryTranscription(for entry: TranscriptionEntry) {
         guard entry.status == .failed || entry.status == .cancelled else { return }
+        guard recordingState == .idle else { return }
         guard let audioFilePath = entry.audioFilePath else { return }
 
         let audioURL = audioFileURL(for: audioFilePath)
         guard FileManager.default.fileExists(atPath: audioURL.path) else { return }
 
-        updateEntry(id: entry.id, status: .transcribing, text: nil, errorMessage: nil)
+        let entryId = entry.id
+        updateEntry(id: entryId, status: .transcribing, text: nil, errorMessage: nil)
+        recordingState = .transcribing
+        activeTranscriptionEntryId = entryId
+        overlay.show(state: .transcribing)
 
-        Task {
+        transcriptionTask = Task {
             do {
                 let rawText = try await TranscriptionService.shared.transcribe(audioFileURL: audioURL)
 
+                guard !Task.isCancelled else { return }
+                let isStillTranscribing = await MainActor.run { self.recordingState == .transcribing }
+                guard isStillTranscribing else { return }
+
                 // LLM post-processing on retry (if enabled)
                 if self.settings.llmPostProcessingEnabled {
+                    await MainActor.run {
+                        self.recordingState = .processing
+                        self.overlay.show(state: .processing)
+                    }
+
                     do {
                         let processedText = try await LLMService.shared.process(text: rawText)
                         await MainActor.run {
-                            self.updateEntry(id: entry.id, status: .successful, text: processedText, rawText: rawText, errorMessage: nil)
+                            guard !Task.isCancelled, self.recordingState == .processing else { return }
+                            self.updateEntry(id: entryId, status: .successful, text: processedText, rawText: rawText, errorMessage: nil)
+                            self.recordingState = .idle
+                            self.activeTranscriptionEntryId = nil
+                            self.overlay.show(state: .done(processedText))
                         }
                     } catch {
                         // LLM failed — fallback to raw text
                         await MainActor.run {
-                            self.updateEntry(id: entry.id, status: .successful, text: rawText, rawText: nil, errorMessage: "LLM processing failed: \(error.localizedDescription)")
+                            guard !Task.isCancelled, self.recordingState == .processing else { return }
+                            self.updateEntry(id: entryId, status: .successful, text: rawText, rawText: nil, errorMessage: "LLM processing failed: \(error.localizedDescription)")
+                            self.recordingState = .idle
+                            self.activeTranscriptionEntryId = nil
+                            self.overlay.show(state: .done(rawText))
                         }
                     }
                 } else {
                     await MainActor.run {
-                        self.updateEntry(id: entry.id, status: .successful, text: rawText, errorMessage: nil)
+                        guard !Task.isCancelled, self.recordingState == .transcribing else { return }
+                        self.updateEntry(id: entryId, status: .successful, text: rawText, errorMessage: nil)
+                        self.recordingState = .idle
+                        self.activeTranscriptionEntryId = nil
+                        self.overlay.show(state: .done(rawText))
                     }
                 }
             } catch {
                 await MainActor.run {
-                    self.updateEntry(id: entry.id, status: .failed, text: nil, errorMessage: error.localizedDescription)
+                    guard !Task.isCancelled,
+                          self.recordingState == .transcribing || self.recordingState == .processing else { return }
+                    self.updateEntry(id: entryId, status: .failed, text: nil, errorMessage: error.localizedDescription)
+                    self.recordingState = .error(error.localizedDescription)
+                    self.activeTranscriptionEntryId = nil
+                    self.overlay.show(state: .error(error.localizedDescription))
                 }
             }
         }
@@ -290,12 +316,8 @@ class AppState: ObservableObject {
     func updateEntry(id: UUID, status: TranscriptionStatus, text: String?, rawText: String? = nil, errorMessage: String?) {
         guard let index = history.firstIndex(where: { $0.id == id }) else { return }
         history[index].status = status
-        if let text = text {
-            history[index].text = text
-        }
-        if let rawText = rawText {
-            history[index].rawText = rawText
-        }
+        history[index].text = text
+        history[index].rawText = rawText
         history[index].errorMessage = errorMessage
         saveHistory()
     }

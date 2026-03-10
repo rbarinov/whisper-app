@@ -19,45 +19,7 @@ jobs:
         run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
       - name: Build WhisperApp
-        run: |
-          SRC_DIR="WhisperApp/WhisperApp"
-          SDK_PATH=$(xcrun --show-sdk-path)
-          mkdir -p build/WhisperApp.app/Contents/MacOS
-          mkdir -p build/WhisperApp.app/Contents/Resources
-
-          SOURCES=(
-            "$SRC_DIR/Models/TranscriptionEntry.swift"
-            "$SRC_DIR/Models/AppSettings.swift"
-            "$SRC_DIR/Services/AudioRecorder.swift"
-            "$SRC_DIR/Services/HotkeyManager.swift"
-            "$SRC_DIR/Services/TranscriptionService.swift"
-            "$SRC_DIR/Services/PasteService.swift"
-            "$SRC_DIR/Services/AudioPlayerService.swift"
-            "$SRC_DIR/Services/LLMService.swift"
-            "$SRC_DIR/ViewModels/AppState.swift"
-            "$SRC_DIR/Views/MenuBarView.swift"
-            "$SRC_DIR/Views/HistoryView.swift"
-            "$SRC_DIR/Views/SettingsView.swift"
-            "$SRC_DIR/Views/RecordingOverlayView.swift"
-            "$SRC_DIR/WhisperApp.swift"
-          )
-
-          swiftc \
-            -target arm64-apple-macosx13.0 \
-            -sdk "$SDK_PATH" \
-            -swift-version 5 \
-            -O \
-            -module-name WhisperApp \
-            -framework AppKit \
-            -framework AVFoundation \
-            -framework CoreGraphics \
-            -framework SwiftUI \
-            -framework Carbon \
-            -o build/WhisperApp.app/Contents/MacOS/WhisperApp \
-            "${SOURCES[@]}"
-
-          cp "$SRC_DIR/Info.plist" build/WhisperApp.app/Contents/Info.plist
-          cp "$SRC_DIR/WhisperApp.entitlements" build/WhisperApp.app/Contents/Resources/
+        run: SKIP_SIGN=1 ./build.sh
 
       - name: Ad-hoc sign
         run: |
