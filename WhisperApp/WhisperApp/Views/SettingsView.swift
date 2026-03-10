@@ -41,14 +41,26 @@ struct SettingsView: View {
                 Section("LLM Post-Processing") {
                     Toggle("Enable LLM post-processing", isOn: $settings.llmPostProcessingEnabled)
 
-                    TextField("Model", text: $settings.llmModelName, prompt: Text("gpt-4o-mini"))
+                    TextField("Model", text: $settings.llmModelName, prompt: Text(AppSettings.defaultLLMModelName))
                         .textFieldStyle(.roundedBorder)
                         .disabled(!settings.llmPostProcessingEnabled)
 
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("System Prompt")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                        HStack {
+                            Text("System Prompt")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Spacer()
+                            if settings.llmSystemPrompt != AppSettings.defaultLLMSystemPrompt {
+                                Button("Reset to Default") {
+                                    settings.llmSystemPrompt = AppSettings.defaultLLMSystemPrompt
+                                }
+                                .font(.caption)
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                                .disabled(!settings.llmPostProcessingEnabled)
+                            }
+                        }
                         TextEditor(text: $settings.llmSystemPrompt)
                             .font(.body)
                             .frame(minHeight: 80, maxHeight: 120)
