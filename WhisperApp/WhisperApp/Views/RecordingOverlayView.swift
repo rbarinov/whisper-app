@@ -8,6 +8,7 @@ enum OverlayState: Equatable {
     case hidden
     case recording
     case transcribing
+    case processing
     case done(String)
     case error(String)
     case cancelled
@@ -53,7 +54,7 @@ struct RecordingOverlayView: View {
     @ViewBuilder
     private var content: some View {
         switch model.state {
-        case .recording, .transcribing, .error, .cancelled:
+        case .recording, .transcribing, .processing, .error, .cancelled:
             compactContent
         case .done:
             doneContent
@@ -97,6 +98,16 @@ struct RecordingOverlayView: View {
                     .colorScheme(.dark)
 
                 Text("Transcribing...")
+                    .font(.system(size: 10, weight: .regular))
+                    .foregroundColor(.white.opacity(0.8))
+
+            case .processing:
+                ProgressView()
+                    .scaleEffect(0.35)
+                    .frame(width: 8, height: 8)
+                    .colorScheme(.dark)
+
+                Text("Processing...")
                     .font(.system(size: 10, weight: .regular))
                     .foregroundColor(.white.opacity(0.8))
 

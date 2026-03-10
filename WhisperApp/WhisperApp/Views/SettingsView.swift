@@ -38,6 +38,32 @@ struct SettingsView: View {
                         .foregroundColor(.secondary)
                 }
 
+                Section("LLM Post-Processing") {
+                    Toggle("Enable LLM post-processing", isOn: $settings.llmPostProcessingEnabled)
+
+                    TextField("Model", text: $settings.llmModelName, prompt: Text("gpt-4o-mini"))
+                        .textFieldStyle(.roundedBorder)
+                        .disabled(!settings.llmPostProcessingEnabled)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("System Prompt")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        TextEditor(text: $settings.llmSystemPrompt)
+                            .font(.body)
+                            .frame(minHeight: 80, maxHeight: 120)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 4)
+                                    .stroke(Color(nsColor: .separatorColor), lineWidth: 1)
+                            )
+                            .disabled(!settings.llmPostProcessingEnabled)
+                    }
+
+                    Text("Describe how the LLM should process the transcription. You can include a glossary of terms, ask for translation, grammar fixes, etc.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+
                 Section("Hotkey") {
                     HStack {
                         Text("Current:")
@@ -123,7 +149,7 @@ struct SettingsView: View {
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
         }
-        .frame(width: 400, height: 520)
+        .frame(width: 400, height: 680)
     }
 }
 

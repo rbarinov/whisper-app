@@ -10,3 +10,4 @@ This directory stores tasks for the project.
 
 - `001-cancel-recording-with-escape.md` - stop active double-tap recording with Escape and cancel transcription
 - `002-persist-recordings-and-retry-transcription.md` - persist audio locally, track transcription status, and allow replay/retry from history
+- `003-llm-post-processing.md` - optional LLM post-processing of transcription via chat completions API

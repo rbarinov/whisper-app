@@ -21,6 +21,7 @@
 		A10000010000000000000012 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000012 /* Assets.xcassets */; };
 		A10000010000000000000013 /* RecordingOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000015 /* RecordingOverlayView.swift */; };
 		A10000010000000000000016 /* AudioPlayerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000016 /* AudioPlayerService.swift */; };
+		A10000010000000000000017 /* LLMService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000017 /* LLMService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -40,6 +41,7 @@
 		A20000010000000000000014 /* WhisperApp.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = WhisperApp.entitlements; sourceTree = "<group>"; };
 		A20000010000000000000015 /* RecordingOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingOverlayView.swift; sourceTree = "<group>"; };
 		A20000010000000000000016 /* AudioPlayerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlayerService.swift; sourceTree = "<group>"; };
+		A20000010000000000000017 /* LLMService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LLMService.swift; sourceTree = "<group>"; };
 		A30000010000000000000001 /* WhisperApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WhisperApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -113,6 +115,7 @@
 				A20000010000000000000007 /* TranscriptionService.swift */,
 				A20000010000000000000008 /* PasteService.swift */,
 				A20000010000000000000016 /* AudioPlayerService.swift */,
+				A20000010000000000000017 /* LLMService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -207,6 +210,7 @@
 				A10000010000000000000011 /* SettingsView.swift in Sources */,
 				A10000010000000000000013 /* RecordingOverlayView.swift in Sources */,
 				A10000010000000000000016 /* AudioPlayerService.swift in Sources */,
+				A10000010000000000000017 /* LLMService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

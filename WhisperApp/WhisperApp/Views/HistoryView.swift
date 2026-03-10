@@ -104,11 +104,32 @@ struct HistoryRow: View {
     private var contentView: some View {
         switch entry.status {
         case .successful:
-            if let text = entry.text {
-                Text(text)
-                    .font(.body)
-                    .lineLimit(4)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+            VStack(alignment: .leading, spacing: 4) {
+                if let text = entry.text {
+                    Text(text)
+                        .font(.body)
+                        .lineLimit(4)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
+                if let rawText = entry.rawText {
+                    DisclosureGroup("Raw transcription") {
+                        Text(rawText)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .textSelection(.enabled)
+                    }
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                }
+
+                if entry.status == .successful, let errorMsg = entry.errorMessage {
+                    Text(errorMsg)
+                        .font(.caption2)
+                        .foregroundColor(.orange)
+                        .lineLimit(2)
+                }
             }
 
         case .transcribing:

@@ -38,7 +38,7 @@ struct MenuBarLabel: View {
             Image(systemName: "mic.fill")
                 .symbolRenderingMode(.palette)
                 .foregroundStyle(.red)
-        case .transcribing:
+        case .transcribing, .processing:
             Image(systemName: "ellipsis.circle")
         default:
             Image(systemName: "mic")
@@ -94,7 +94,7 @@ class WindowManager: NSObject, ObservableObject, NSWindowDelegate {
         let hostingView = NSHostingView(rootView: view)
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 400, height: 520),
+            contentRect: NSRect(x: 0, y: 0, width: 400, height: 680),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false

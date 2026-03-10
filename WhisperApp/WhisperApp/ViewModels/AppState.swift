@@ -9,6 +9,7 @@ enum RecordingState: Equatable {
     case idle
     case recording
     case transcribing
+    case processing
     case error(String)
 }
 
@@ -60,10 +61,10 @@ class AppState: ObservableObject {
             self?.handleHotkeyAction(action)
         }
 
-        // Allow Escape to cancel transcription in progress
+        // Allow Escape to cancel recording, transcription, or LLM processing in progress
         hotkeyManager.shouldCancelOnEscape = { [weak self] in
             guard let self = self else { return false }
-            return self.recordingState == .recording || self.recordingState == .transcribing
+            return self.recordingState == .recording || self.recordingState == .transcribing || self.recordingState == .processing
         }
 
         // Auto-setup on init
@@ -137,20 +138,68 @@ class AppState: ObservableObject {
 
         transcriptionTask = Task {
             do {
-                let text = try await TranscriptionService.shared.transcribe(audioFileURL: persistedURL)
+                let rawText = try await TranscriptionService.shared.transcribe(audioFileURL: persistedURL)
+
+                // Check cancellation after Whisper completes
+                guard !Task.isCancelled else { return }
+                var shouldContinue = true
                 await MainActor.run {
-                    guard !Task.isCancelled, self.recordingState == .transcribing else { return }
+                    guard self.recordingState == .transcribing else {
+                        shouldContinue = false
+                        return
+                    }
+                }
+                guard shouldContinue else { return }
 
-                    self.updateEntry(id: entryId, status: .successful, text: text, errorMessage: nil)
-                    self.recordingState = .idle
-                    self.activeTranscriptionEntryId = nil
+                // LLM post-processing (if enabled)
+                if self.settings.llmPostProcessingEnabled {
+                    await MainActor.run {
+                        self.recordingState = .processing
+                        self.overlay.show(state: .processing)
+                    }
 
-                    self.overlay.show(state: .done(text))
-                    PasteService.shared.paste(text)
+                    do {
+                        let processedText = try await LLMService.shared.process(text: rawText)
+                        await MainActor.run {
+                            guard !Task.isCancelled, self.recordingState == .processing else { return }
+
+                            self.updateEntry(id: entryId, status: .successful, text: processedText, rawText: rawText, errorMessage: nil)
+                            self.recordingState = .idle
+                            self.activeTranscriptionEntryId = nil
+
+                            self.overlay.show(state: .done(processedText))
+                            PasteService.shared.paste(processedText)
+                        }
+                    } catch {
+                        // LLM failed — fallback to raw Whisper text
+                        await MainActor.run {
+                            guard !Task.isCancelled, self.recordingState == .processing else { return }
+
+                            self.updateEntry(id: entryId, status: .successful, text: rawText, rawText: nil, errorMessage: "LLM processing failed: \(error.localizedDescription)")
+                            self.recordingState = .idle
+                            self.activeTranscriptionEntryId = nil
+
+                            self.overlay.show(state: .done(rawText))
+                            PasteService.shared.paste(rawText)
+                        }
+                    }
+                } else {
+                    // No LLM — original flow
+                    await MainActor.run {
+                        guard !Task.isCancelled, self.recordingState == .transcribing else { return }
+
+                        self.updateEntry(id: entryId, status: .successful, text: rawText, errorMessage: nil)
+                        self.recordingState = .idle
+                        self.activeTranscriptionEntryId = nil
+
+                        self.overlay.show(state: .done(rawText))
+                        PasteService.shared.paste(rawText)
+                    }
                 }
             } catch {
                 await MainActor.run {
-                    guard !Task.isCancelled, self.recordingState == .transcribing else { return }
+                    guard !Task.isCancelled,
+                          self.recordingState == .transcribing || self.recordingState == .processing else { return }
 
                     self.updateEntry(id: entryId, status: .failed, text: nil, errorMessage: error.localizedDescription)
                     self.recordingState = .error(error.localizedDescription)
@@ -185,8 +234,8 @@ class AppState: ObservableObject {
             recordingState = .idle
             overlay.show(state: .cancelled)
 
-        case .transcribing:
-            // Cancel in-flight transcription — entry already exists, mark as cancelled
+        case .transcribing, .processing:
+            // Cancel in-flight transcription or LLM processing — entry already exists, mark as cancelled
             transcriptionTask?.cancel()
             transcriptionTask = nil
             if let entryId = activeTranscriptionEntryId {
@@ -214,9 +263,25 @@ class AppState: ObservableObject {
 
         Task {
             do {
-                let text = try await TranscriptionService.shared.transcribe(audioFileURL: audioURL)
-                await MainActor.run {
-                    self.updateEntry(id: entry.id, status: .successful, text: text, errorMessage: nil)
+                let rawText = try await TranscriptionService.shared.transcribe(audioFileURL: audioURL)
+
+                // LLM post-processing on retry (if enabled)
+                if self.settings.llmPostProcessingEnabled {
+                    do {
+                        let processedText = try await LLMService.shared.process(text: rawText)
+                        await MainActor.run {
+                            self.updateEntry(id: entry.id, status: .successful, text: processedText, rawText: rawText, errorMessage: nil)
+                        }
+                    } catch {
+                        // LLM failed — fallback to raw text
+                        await MainActor.run {
+                            self.updateEntry(id: entry.id, status: .successful, text: rawText, rawText: nil, errorMessage: "LLM processing failed: \(error.localizedDescription)")
+                        }
+                    }
+                } else {
+                    await MainActor.run {
+                        self.updateEntry(id: entry.id, status: .successful, text: rawText, errorMessage: nil)
+                    }
                 }
             } catch {
                 await MainActor.run {
@@ -228,11 +293,14 @@ class AppState: ObservableObject {
 
     // MARK: - CRUD
 
-    func updateEntry(id: UUID, status: TranscriptionStatus, text: String?, errorMessage: String?) {
+    func updateEntry(id: UUID, status: TranscriptionStatus, text: String?, rawText: String? = nil, errorMessage: String?) {
         guard let index = history.firstIndex(where: { $0.id == id }) else { return }
         history[index].status = status
         if let text = text {
             history[index].text = text
+        }
+        if let rawText = rawText {
+            history[index].rawText = rawText
         }
         history[index].errorMessage = errorMessage
         saveHistory()
@@ -315,6 +383,9 @@ class AppState: ObservableObject {
                 history[i].errorMessage = "Interrupted by app restart"
                 changed = true
             }
+            // Note: .processing state is not persisted in TranscriptionStatus,
+            // but transcribing entries that were mid-LLM would still be .transcribing
+            // since we only update status to .successful/.failed after completion.
         }
         if changed {
             saveHistory()

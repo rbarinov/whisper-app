@@ -155,6 +155,13 @@ struct MenuBarView: View {
                 Spacer()
             }
 
+        case .processing:
+            HStack(spacing: 8) {
+                ProgressView().controlSize(.small)
+                Text("Processing...").font(.caption).foregroundColor(.secondary)
+                Spacer()
+            }
+
         case .error(let message):
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 6) {

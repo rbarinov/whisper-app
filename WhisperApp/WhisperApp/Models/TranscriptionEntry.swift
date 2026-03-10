@@ -15,6 +15,7 @@ struct TranscriptionEntry: Identifiable, Codable, Equatable {
     let durationSeconds: Double
 
     var text: String?
+    var rawText: String?  // original Whisper output before LLM processing
     var status: TranscriptionStatus
     var audioFilePath: String?
     var errorMessage: String?
@@ -25,6 +26,7 @@ struct TranscriptionEntry: Identifiable, Codable, Equatable {
         self.timestamp = Date()
         self.durationSeconds = durationSeconds
         self.text = nil
+        self.rawText = nil
         self.status = status
         self.audioFilePath = audioFilePath
         self.errorMessage = nil
@@ -36,6 +38,7 @@ struct TranscriptionEntry: Identifiable, Codable, Equatable {
         self.timestamp = Date()
         self.durationSeconds = durationSeconds
         self.text = nil
+        self.rawText = nil
         self.status = status
         self.audioFilePath = audioFilePath
         self.errorMessage = nil
@@ -51,6 +54,7 @@ struct TranscriptionEntry: Identifiable, Codable, Equatable {
 
         // Old entries store `text` as non-optional String; new entries store it as optional.
         text = try container.decodeIfPresent(String.self, forKey: .text)
+        rawText = try container.decodeIfPresent(String.self, forKey: .rawText)
 
         // Old entries have no status — treat them as successful.
         status = try container.decodeIfPresent(TranscriptionStatus.self, forKey: .status) ?? .successful
