@@ -37,16 +37,23 @@ struct MenuBarView: View {
             // Last transcription preview
             if let last = appState.history.first {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Last transcription:")
+                    Text("Last recording:")
                         .font(.caption2)
                         .foregroundColor(.secondary)
-                    Text(last.text)
-                        .font(.system(.caption, design: .default))
-                        .lineLimit(3)
-                        .frame(maxWidth: .infinity, alignment: .leading)
 
-                    MenuBarButton(icon: "doc.on.doc", title: "Copy to Clipboard") {
-                        appState.copyToClipboard(last.text)
+                    lastEntryContent(last)
+
+                    if last.status == .successful, let text = last.text {
+                        MenuBarButton(icon: "doc.on.doc", title: "Copy to Clipboard") {
+                            appState.copyToClipboard(text)
+                        }
+                    }
+
+                    if (last.status == .failed || last.status == .cancelled),
+                       appState.isAudioAvailable(for: last) {
+                        MenuBarButton(icon: "arrow.clockwise", iconColor: .orange, title: "Retry Transcription") {
+                            appState.retryTranscription(for: last)
+                        }
                     }
                 }
                 .padding(.horizontal, 8)
@@ -76,6 +83,47 @@ struct MenuBarView: View {
         }
         .padding(.vertical, 4)
         .frame(width: 300)
+    }
+
+    @ViewBuilder
+    private func lastEntryContent(_ entry: TranscriptionEntry) -> some View {
+        switch entry.status {
+        case .successful:
+            if let text = entry.text {
+                Text(text)
+                    .font(.system(.caption, design: .default))
+                    .lineLimit(3)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        case .transcribing:
+            HStack(spacing: 6) {
+                ProgressView().controlSize(.small)
+                Text("Transcribing...")
+                    .font(.system(.caption, design: .default))
+                    .foregroundColor(.secondary)
+            }
+        case .failed:
+            HStack(spacing: 4) {
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundColor(.red)
+                    .font(.caption)
+                Text(entry.errorMessage ?? "Transcription failed")
+                    .font(.system(.caption, design: .default))
+                    .foregroundColor(.secondary)
+                    .lineLimit(2)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        case .cancelled:
+            HStack(spacing: 4) {
+                Image(systemName: "minus.circle.fill")
+                    .foregroundColor(.secondary)
+                    .font(.caption)
+                Text("Recording cancelled")
+                    .font(.system(.caption, design: .default))
+                    .foregroundColor(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
     }
 
     private func dismissMenuBarPopover() {

@@ -63,4 +63,4 @@ The current flow can lose useful work when upload or transcription fails. If the
 
 ## Status
 
-pending
+completed

@@ -18,6 +18,7 @@ SOURCES=(
     "$SRC_DIR/Services/HotkeyManager.swift"
     "$SRC_DIR/Services/TranscriptionService.swift"
     "$SRC_DIR/Services/PasteService.swift"
+    "$SRC_DIR/Services/AudioPlayerService.swift"
     "$SRC_DIR/ViewModels/AppState.swift"
     "$SRC_DIR/Views/MenuBarView.swift"
     "$SRC_DIR/Views/HistoryView.swift"

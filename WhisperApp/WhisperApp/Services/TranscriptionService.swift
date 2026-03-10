@@ -86,7 +86,6 @@ class TranscriptionService {
                         guard let result = try? JSONDecoder().decode(WhisperResponse.self, from: data) else {
                             throw TranscriptionError.decodingError
                         }
-                        try? FileManager.default.removeItem(at: audioFileURL)
                         return result.text
                     }
 
@@ -122,7 +121,6 @@ class TranscriptionService {
         }
 
         // All retries exhausted
-        try? FileManager.default.removeItem(at: audioFileURL)
         throw lastError
     }
 }
