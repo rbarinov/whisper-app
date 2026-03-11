@@ -1,6 +1,5 @@
 import { BrowserWindow, systemPreferences } from 'electron';
 import {
-  MIN_RECORDING_DURATION_S,
   OVERLAY_DISMISS_CANCELLED_MS,
   OVERLAY_DISMISS_DONE_MS,
   OVERLAY_DISMISS_ERROR_MS,
@@ -19,14 +18,14 @@ import {
   clearAllHistory,
   deleteEntry,
   loadHistory,
-  updateEntry,
 } from './services/history-service';
 import { HotkeyManager } from './services/hotkey-manager';
-import { encodeWAV } from './services/audio-recorder';
 import { isWaylandSession } from './services/paste-service';
 import { loadSettings, saveSettings } from './services/settings-service';
 import {
-  persistCancelledRecording,
+  cancelRecording as cancelRecordingLifecycle,
+  handleRecordingData as handleRecordingDataLifecycle,
+  type PendingRecordingData,
   prepareRetryTranscription,
   runRecordingLifecycle,
   runRetryLifecycle,
@@ -55,13 +54,7 @@ export class AppStateManager {
   private lastRecordingBuffer: Buffer | null = null;
   private recordingStartTime: number | null = null;
   private pendingCancelledDurationSeconds: number | null = null;
-  private pendingRecordingData:
-    | {
-      resolve: (data: RendererRecordingData) => void;
-      reject: (reason?: unknown) => void;
-      timeout: NodeJS.Timeout;
-    }
-    | null = null;
+  private pendingRecordingData: PendingRecordingData | null = null;
   private hotkeyManager: HotkeyManager;
   private mainWindow: BrowserWindow | null = null;
   private overlayWindow: BrowserWindow | null = null;
@@ -221,76 +214,11 @@ export class AppStateManager {
   }
 
   handleRecordingData(data: RendererRecordingData): void {
-    if (data.inputSampleRate > 0 && data.samples.length > 0) {
-      const wavBuffer = encodeWAV(data.samples, data.inputSampleRate);
-      this.lastRecordingBuffer = wavBuffer;
-
-      if (this.pendingCancelledDurationSeconds !== null) {
-        persistCancelledRecording(wavBuffer, this.pendingCancelledDurationSeconds);
-        this.history = loadHistory();
-        this.broadcastStateUpdate();
-        this.pendingCancelledDurationSeconds = null;
-      }
-    }
-
-    if (!this.pendingRecordingData) {
-      return;
-    }
-
-    const pending = this.pendingRecordingData;
-    this.pendingRecordingData = null;
-    clearTimeout(pending.timeout);
-    pending.resolve(data);
+    handleRecordingDataLifecycle(this.lifecycleContext(), data);
   }
 
   cancelRecording(): void {
-    if (this.recordingState.type === 'idle' && this.activeTranscriptionEntryId === null) {
-      return;
-    }
-
-    if (this.recordingState.type === 'recording') {
-      const recordingDurationMs =
-        this.recordingStartTime === null ? 0 : Math.max(0, Date.now() - this.recordingStartTime);
-      const meetsMinDuration = recordingDurationMs >= MIN_RECORDING_DURATION_S * 1000;
-
-      this.pendingCancelledDurationSeconds = meetsMinDuration ? recordingDurationMs / 1000 : null;
-
-      if (meetsMinDuration && this.lastRecordingBuffer) {
-        persistCancelledRecording(this.lastRecordingBuffer, recordingDurationMs / 1000);
-        this.history = loadHistory();
-        this.pendingCancelledDurationSeconds = null;
-      }
-
-      this.lastRecordingBuffer = null;
-    } else if (
-      (this.recordingState.type === 'transcribing' || this.recordingState.type === 'processing') &&
-      this.activeTranscriptionEntryId &&
-      this.activeTranscriptionEntryId !== 'pending'
-    ) {
-      try {
-        updateEntry(this.activeTranscriptionEntryId, {
-          status: 'cancelled',
-        });
-        this.history = loadHistory();
-      } catch (e) { console.error('Failed to update cancelled entry:', e); }
-    }
-
-    this.currentAbortController?.abort();
-    this.currentAbortController = null;
-    if (this.pendingRecordingData) {
-      clearTimeout(this.pendingRecordingData.timeout);
-      this.pendingRecordingData.reject(new Error('Recording cancelled'));
-      this.pendingRecordingData = null;
-    }
-    this.activeTranscriptionEntryId = null;
-    this.recordingStartTime = null;
-    this.recordingState = { type: 'idle' };
-    this.overlayState = { type: 'cancelled' };
-    this.applyRecordingState(this.recordingState);
-
-    this.broadcastStateUpdate();
-    this.broadcastOverlayUpdate(this.overlayState);
-    this.scheduleOverlayDismiss(this.overlayState);
+    cancelRecordingLifecycle(this.lifecycleContext());
   }
 
   retryTranscription(entryId: string): void {
@@ -332,6 +260,12 @@ export class AppStateManager {
       set currentAbortController(v) { self.currentAbortController = v; },
       get lastRecordingBuffer() { return self.lastRecordingBuffer; },
       set lastRecordingBuffer(v) { self.lastRecordingBuffer = v; },
+      get recordingStartTime() { return self.recordingStartTime; },
+      set recordingStartTime(v) { self.recordingStartTime = v; },
+      get pendingCancelledDurationSeconds() { return self.pendingCancelledDurationSeconds; },
+      set pendingCancelledDurationSeconds(v) { self.pendingCancelledDurationSeconds = v; },
+      get pendingRecordingData() { return self.pendingRecordingData; },
+      set pendingRecordingData(v) { self.pendingRecordingData = v; },
       get recordingState() { return self.recordingState; },
       set recordingState(v) { self.recordingState = v; },
       get overlayState() { return self.overlayState; },
@@ -346,25 +280,7 @@ export class AppStateManager {
       sendWaylandPasteNotification: (message) => {
         this.mainWindow?.webContents.send(IPC.WAYLAND_PASTE_NOTIFICATION, message);
       },
-      waitForRecordingData: () => this.waitForRecordingData(),
     };
-  }
-
-  private waitForRecordingData(): Promise<RendererRecordingData> {
-    if (this.pendingRecordingData) {
-      clearTimeout(this.pendingRecordingData.timeout);
-      this.pendingRecordingData.reject(new Error('Recording request replaced by new request'));
-      this.pendingRecordingData = null;
-    }
-
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        this.pendingRecordingData = null;
-        reject(new Error('Timed out waiting for recording data from renderer'));
-      }, 15000);
-
-      this.pendingRecordingData = { resolve, reject, timeout };
-    });
   }
 
   updateSettings(settings: AppSettings): void {
@@ -496,4 +412,3 @@ export class AppStateManager {
 }
 
 export const appStateManager = new AppStateManager();
-

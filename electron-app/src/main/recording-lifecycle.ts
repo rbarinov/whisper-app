@@ -25,6 +25,9 @@ export interface LifecycleContext {
   activeTranscriptionEntryId: string | null;
   currentAbortController: AbortController | null;
   lastRecordingBuffer: Buffer | null;
+  recordingStartTime: number | null;
+  pendingCancelledDurationSeconds: number | null;
+  pendingRecordingData: PendingRecordingData | null;
   recordingState: RecordingState;
   overlayState: OverlayState;
   history: TranscriptionEntry[];
@@ -35,7 +38,12 @@ export interface LifecycleContext {
   broadcastOverlayUpdate(state: OverlayState): void;
   scheduleOverlayDismiss(state: OverlayState): void;
   sendWaylandPasteNotification(message: string): void;
-  waitForRecordingData(): Promise<RendererRecordingData>;
+}
+
+export interface PendingRecordingData {
+  resolve: (data: RendererRecordingData) => void;
+  reject: (reason?: unknown) => void;
+  timeout: NodeJS.Timeout;
 }
 
 export async function runRecordingLifecycle(ctx: LifecycleContext): Promise<void> {
@@ -49,7 +57,7 @@ export async function runRecordingLifecycle(ctx: LifecycleContext): Promise<void
   ctx.currentAbortController = new AbortController();
 
   try {
-    const recordingData = await ctx.waitForRecordingData();
+    const recordingData = await waitForRecordingData(ctx);
     const wavBuffer = encodeWAV(recordingData.samples, recordingData.inputSampleRate);
     ctx.lastRecordingBuffer = wavBuffer;
     const recording = await saveRecording(
@@ -142,7 +150,7 @@ export async function runRetryLifecycle(
   }
 }
 
-async function runTranscriptionFromBuffer(
+export async function runTranscriptionFromBuffer(
   ctx: LifecycleContext,
   wavBuffer: Buffer,
   entryId: string,
@@ -212,6 +220,98 @@ async function runTranscriptionFromBuffer(
   if (pasteResult.method === 'clipboard-only' && pasteResult.message) {
     ctx.sendWaylandPasteNotification(pasteResult.message);
   }
+}
+
+export function handleRecordingData(ctx: LifecycleContext, data: RendererRecordingData): void {
+  if (data.inputSampleRate > 0 && data.samples.length > 0) {
+    const wavBuffer = encodeWAV(data.samples, data.inputSampleRate);
+    ctx.lastRecordingBuffer = wavBuffer;
+
+    if (ctx.pendingCancelledDurationSeconds !== null) {
+      persistCancelledRecording(wavBuffer, ctx.pendingCancelledDurationSeconds);
+      ctx.history = loadHistory();
+      ctx.broadcastStateUpdate();
+      ctx.pendingCancelledDurationSeconds = null;
+    }
+  }
+
+  if (!ctx.pendingRecordingData) {
+    return;
+  }
+
+  const pending = ctx.pendingRecordingData;
+  ctx.pendingRecordingData = null;
+  clearTimeout(pending.timeout);
+  pending.resolve(data);
+}
+
+export function cancelRecording(ctx: LifecycleContext): void {
+  if (ctx.recordingState.type === 'idle' && ctx.activeTranscriptionEntryId === null) {
+    return;
+  }
+
+  if (ctx.recordingState.type === 'recording') {
+    const recordingDurationMs =
+      ctx.recordingStartTime === null ? 0 : Math.max(0, Date.now() - ctx.recordingStartTime);
+    const meetsMinDuration = recordingDurationMs >= MIN_RECORDING_DURATION_S * 1000;
+
+    ctx.pendingCancelledDurationSeconds = meetsMinDuration ? recordingDurationMs / 1000 : null;
+
+    if (meetsMinDuration && ctx.lastRecordingBuffer) {
+      persistCancelledRecording(ctx.lastRecordingBuffer, recordingDurationMs / 1000);
+      ctx.history = loadHistory();
+      ctx.pendingCancelledDurationSeconds = null;
+    }
+
+    ctx.lastRecordingBuffer = null;
+  } else if (
+    (ctx.recordingState.type === 'transcribing' || ctx.recordingState.type === 'processing') &&
+    ctx.activeTranscriptionEntryId &&
+    ctx.activeTranscriptionEntryId !== 'pending'
+  ) {
+    try {
+      updateEntry(ctx.activeTranscriptionEntryId, {
+        status: 'cancelled',
+      });
+      ctx.history = loadHistory();
+    } catch (e) {
+      console.error('Failed to update cancelled entry:', e);
+    }
+  }
+
+  ctx.currentAbortController?.abort();
+  ctx.currentAbortController = null;
+  if (ctx.pendingRecordingData) {
+    clearTimeout(ctx.pendingRecordingData.timeout);
+    ctx.pendingRecordingData.reject(new Error('Recording cancelled'));
+    ctx.pendingRecordingData = null;
+  }
+
+  ctx.activeTranscriptionEntryId = null;
+  ctx.recordingStartTime = null;
+  ctx.recordingState = { type: 'idle' };
+  ctx.overlayState = { type: 'cancelled' };
+  ctx.applyRecordingState(ctx.recordingState);
+  ctx.broadcastStateUpdate();
+  ctx.broadcastOverlayUpdate(ctx.overlayState);
+  ctx.scheduleOverlayDismiss(ctx.overlayState);
+}
+
+export function waitForRecordingData(ctx: LifecycleContext): Promise<RendererRecordingData> {
+  if (ctx.pendingRecordingData) {
+    clearTimeout(ctx.pendingRecordingData.timeout);
+    ctx.pendingRecordingData.reject(new Error('Recording request replaced by new request'));
+    ctx.pendingRecordingData = null;
+  }
+
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      ctx.pendingRecordingData = null;
+      reject(new Error('Timed out waiting for recording data from renderer'));
+    }, 15000);
+
+    ctx.pendingRecordingData = { resolve, reject, timeout };
+  });
 }
 
 /**
