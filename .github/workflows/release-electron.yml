@@ -52,9 +52,6 @@ jobs:
           path: |
             electron-app/release/*.dmg
             electron-app/release/*.zip
-            electron-app/release/*.blockmap
-            electron-app/release/*.yml
-            electron-app/release/*.yaml
 
   build-windows:
     runs-on: windows-latest
@@ -99,9 +96,6 @@ jobs:
           name: electron-windows
           path: |
             electron-app/release/*.exe
-            electron-app/release/*.blockmap
-            electron-app/release/*.yml
-            electron-app/release/*.yaml
 
   build-linux:
     runs-on: ubuntu-22.04
@@ -150,9 +144,6 @@ jobs:
             electron-app/release/*.AppImage
             electron-app/release/*.deb
             electron-app/release/*.rpm
-            electron-app/release/*.blockmap
-            electron-app/release/*.yml
-            electron-app/release/*.yaml
 
   publish:
     needs: [build-macos, build-windows, build-linux]
@@ -180,8 +171,14 @@ jobs:
 
       - name: Upload to GitHub Release
         run: |
-          # Collect all artifact files into an array (handles spaces in names)
-          mapfile -d '' FILES < <(find artifacts -type f -print0)
+          # Collect only distributable files (exclude yml/yaml metadata)
+          mapfile -d '' FILES < <(find artifacts -type f \( -name '*.dmg' -o -name '*.zip' -o -name '*.exe' -o -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' \) -print0)
+          if [ ${#FILES[@]} -eq 0 ]; then
+            echo 'No distributable files found!'
+            find artifacts -type f
+            exit 1
+          fi
+          echo 'Uploading ${#FILES[@]} files...'
           # Create release if it doesn't exist yet, or upload to existing
           if gh release view "$TAG" > /dev/null 2>&1; then
             echo "Release $TAG exists, uploading assets..."
