@@ -28,10 +28,12 @@ mac:
   category: public.app-category.utilities
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
+  icon: assets/icon.png
 win:
   target:
     - nsis
     - portable
+  icon: assets/icon.png
 linux:
   target:
     - target: AppImage
@@ -39,6 +41,7 @@ linux:
     - target: rpm
   category: Utility
   artifactName: '${productName}-${version}-${arch}.${ext}'
+  icon: assets/icon.png
 deb:
   depends:
     - libappindicator1
