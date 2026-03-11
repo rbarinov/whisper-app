@@ -11,6 +11,7 @@ export class TrayManager {
   private currentState: RecordingState = { type: 'idle' };
   private onShowSettings: (() => void) | null = null;
   private onShowHistory: (() => void) | null = null;
+  private onShowOnboarding: (() => void) | null = null;
   private onStartRecording: (() => void) | null = null;
   private onStopRecording: (() => void) | null = null;
 
@@ -20,11 +21,13 @@ export class TrayManager {
   initialize(
     onShowSettings: () => void,
     onShowHistory: () => void,
+    onShowOnboarding: () => void,
     onStartRecording: () => void,
     onStopRecording: () => void,
   ): void {
     this.onShowSettings = onShowSettings;
     this.onShowHistory = onShowHistory;
+    this.onShowOnboarding = onShowOnboarding;
     this.onStartRecording = onStartRecording;
     this.onStopRecording = onStopRecording;
 
@@ -160,6 +163,12 @@ export class TrayManager {
         label: 'Settings',
         click: () => {
           this.onShowSettings?.();
+        },
+      },
+      {
+        label: 'Onboarding',
+        click: () => {
+          this.onShowOnboarding?.();
         },
       },
       { type: 'separator' },

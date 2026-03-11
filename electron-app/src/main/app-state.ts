@@ -512,8 +512,8 @@ export class AppStateManager {
 
       try {
         finalText = await processWithLLM(rawText, {
-          apiBaseURL: this.settings.apiBaseURL,
-          apiKey: this.settings.apiKey,
+          apiBaseURL: this.settings.llmApiBaseURL.trim() || this.settings.apiBaseURL,
+          apiKey: this.settings.llmApiKey.trim() || this.settings.apiKey,
           llmModelName: this.settings.llmModelName,
           llmSystemPrompt: this.settings.llmSystemPrompt,
         }, {

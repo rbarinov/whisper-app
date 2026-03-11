@@ -1,4 +1,4 @@
-import { app, BrowserWindow, clipboard, ipcMain, screen, shell } from 'electron';
+import { app, BrowserWindow, clipboard, ipcMain, screen, shell, IpcMainInvokeEvent } from 'electron';
 import * as path from 'path';
 import { IPC } from '../shared/ipc-channels';
 import { AppSettings } from '../shared/types';
@@ -11,6 +11,13 @@ let historyWindow: BrowserWindow | null = null;
 let onboardingWindow: BrowserWindow | null = null;
 let overlayWindow: BrowserWindow | null = null;
 
+function buildFramelessWindowOptions() {
+  return {
+    frame: false,
+    backgroundColor: '#f1ede4',
+  };
+}
+
 export function openOnboardingWindow(onClosed?: () => void): BrowserWindow {
   if (onboardingWindow && !onboardingWindow.isDestroyed()) {
     onboardingWindow.focus();
@@ -18,12 +25,12 @@ export function openOnboardingWindow(onClosed?: () => void): BrowserWindow {
   }
 
   onboardingWindow = new BrowserWindow({
-    width: 500,
-    height: 450,
+    ...buildFramelessWindowOptions(),
+    width: 860,
+    height: 480,
     resizable: false,
     minimizable: false,
     maximizable: false,
-    titleBarStyle: 'hiddenInset',
     title: 'WhisperApp Setup',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -50,8 +57,9 @@ export function openSettingsWindow(): void {
     return;
   }
   settingsWindow = new BrowserWindow({
-    width: 800,
-    height: 600,
+    ...buildFramelessWindowOptions(),
+    width: 1020,
+    height: 540,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -72,8 +80,9 @@ export function openHistoryWindow(): void {
     return;
   }
   historyWindow = new BrowserWindow({
-    width: 900,
-    height: 600,
+    ...buildFramelessWindowOptions(),
+    width: 1040,
+    height: 540,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -100,16 +109,17 @@ export function createOverlayWindow(): BrowserWindow {
 
   const primaryDisplay = screen.getPrimaryDisplay();
   const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize;
-  const overlayWidth = 300;
-  const overlayHeight = 120;
+  const overlayWidth = 264;
+  const overlayHeight = 48;
 
   overlayWindow = new BrowserWindow({
     width: overlayWidth,
     height: overlayHeight,
     x: Math.round(screenWidth / 2 - overlayWidth / 2),
-    y: screenHeight - overlayHeight - 10,
+    y: screenHeight - overlayHeight - 24,
     frame: false,
     transparent: true,
+    backgroundColor: '#00000000',
     alwaysOnTop: true,
     skipTaskbar: true,
     resizable: false,
@@ -163,11 +173,11 @@ export function registerIpcHandlers(appState: AppStateManager): void {
   ipcMain.handle(IPC.CLEAR_HISTORY, async () => {
     appState.clearHistory();
   });
-  ipcMain.handle(IPC.PLAY_AUDIO, async (_event: unknown, _audioPath: string) => {
-    // Audio playback handled via history service directly
+  ipcMain.handle(IPC.PLAY_AUDIO, async (_event: unknown, payload: { entryId: string; filePath: string }) => {
+    appState.toggleAudioPlayback(payload.entryId, payload.filePath);
   });
   ipcMain.handle(IPC.STOP_AUDIO, async () => {
-    // Audio stop handled via history service directly
+    appState.toggleAudioPlayback('', '');
   });
   ipcMain.handle(IPC.COPY_TO_CLIPBOARD, async (_event: unknown, text: string) => {
     clipboard.writeText(text);
@@ -194,6 +204,24 @@ export function registerIpcHandlers(appState: AppStateManager): void {
       'x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility'
     );
   });
+  ipcMain.handle(IPC.WINDOW_CLOSE, async (event: IpcMainInvokeEvent) => {
+    BrowserWindow.fromWebContents(event.sender)?.close();
+  });
+  ipcMain.handle(IPC.WINDOW_MINIMIZE, async (event: IpcMainInvokeEvent) => {
+    BrowserWindow.fromWebContents(event.sender)?.minimize();
+  });
+  ipcMain.handle(IPC.WINDOW_TOGGLE_MAXIMIZE, async (event: IpcMainInvokeEvent) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) {
+      return;
+    }
+
+    if (win.isMaximized()) {
+      win.unmaximize();
+    } else {
+      win.maximize();
+    }
+  });
 
   ipcMain.handle(IPC.GET_SETTINGS, async () => {
     return appState.getSnapshot().settings;
@@ -202,7 +230,12 @@ export function registerIpcHandlers(appState: AppStateManager): void {
     return appState.getSnapshot().history;
   });
   ipcMain.handle(IPC.GET_AUDIO_PATH, async (_event: unknown, relativePath: string) => {
-    return path.join(getRecordingsDir(), relativePath);
+    if (path.isAbsolute(relativePath)) {
+      return relativePath;
+    }
+
+    const normalizedPath = relativePath.replace(/^recordings[\\/]+/, '');
+    return path.join(getRecordingsDir(), normalizedPath);
   });
 
   ipcMain.handle(IPC.SHOW_SETTINGS, async () => {
@@ -210,6 +243,9 @@ export function registerIpcHandlers(appState: AppStateManager): void {
   });
   ipcMain.handle(IPC.SHOW_HISTORY, async () => {
     openHistoryWindow();
+  });
+  ipcMain.handle(IPC.SHOW_ONBOARDING, async () => {
+    openOnboardingWindow();
   });
   ipcMain.handle(IPC.QUIT_APP, async () => {
     app.quit();

@@ -106,6 +106,7 @@ app.whenReady().then(() => {
   trayManager.initialize(
     () => { openSettingsWindow(); },
     () => { openHistoryWindow(); },
+    () => { openOnboardingWindow(); },
     () => { appStateManager.startRecording(); },
     () => { appStateManager.stopRecordingAndTranscribe(); }
   );

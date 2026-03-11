@@ -25,6 +25,7 @@ contextBridge.exposeInMainWorld('api', {
 
   showSettings: () => ipcRenderer.invoke(IPC.SHOW_SETTINGS),
   showHistory: () => ipcRenderer.invoke(IPC.SHOW_HISTORY),
+  showOnboarding: () => ipcRenderer.invoke(IPC.SHOW_ONBOARDING),
   quit: () => ipcRenderer.invoke(IPC.QUIT_APP),
 
   startHotkeyCapture: () => ipcRenderer.invoke(IPC.START_HOTKEY_CAPTURE),
@@ -33,6 +34,9 @@ contextBridge.exposeInMainWorld('api', {
   requestMicrophonePermission: () => ipcRenderer.invoke(IPC.REQUEST_MIC_PERMISSION),
   requestAccessibility: () => ipcRenderer.invoke(IPC.REQUEST_ACCESSIBILITY),
   openAccessibilitySettings: () => ipcRenderer.invoke(IPC.OPEN_ACCESSIBILITY_SETTINGS),
+  closeWindow: () => ipcRenderer.invoke(IPC.WINDOW_CLOSE),
+  minimizeWindow: () => ipcRenderer.invoke(IPC.WINDOW_MINIMIZE),
+  toggleMaximizeWindow: () => ipcRenderer.invoke(IPC.WINDOW_TOGGLE_MAXIMIZE),
 
   onStateUpdate: (callback: (state: unknown) => void) => {
     const listener = (_event: unknown, state: unknown) => callback(state);

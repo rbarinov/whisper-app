@@ -86,6 +86,8 @@ export function loadSettings(): AppSettings {
         keyName: fileSettings.hotkeyConfig?.keyName ?? DEFAULT_SETTINGS.hotkeyConfig.keyName,
       },
       llmPostProcessingEnabled: fileSettings.llmPostProcessingEnabled ?? DEFAULT_SETTINGS.llmPostProcessingEnabled,
+      llmApiBaseURL: fileSettings.llmApiBaseURL ?? DEFAULT_SETTINGS.llmApiBaseURL,
+      llmApiKey: fileSettings.llmApiKey ?? DEFAULT_SETTINGS.llmApiKey,
       llmModelName: fileSettings.llmModelName ?? DEFAULT_SETTINGS.llmModelName,
       llmSystemPrompt: fileSettings.llmSystemPrompt ?? DEFAULT_SETTINGS.llmSystemPrompt,
     };
