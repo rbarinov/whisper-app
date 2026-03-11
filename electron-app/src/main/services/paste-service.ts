@@ -111,7 +111,6 @@ export async function pasteText(
 
   // 2. Write transcribed text to clipboard
   clipboardWrite(text);
-  clipboardWrite(text);
 
   try {
     // 3. Small delay before simulating keystroke (let clipboard settle)
