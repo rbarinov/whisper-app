@@ -114,6 +114,7 @@ vi.mock('fs', () => ({
 
 import { IPC } from '../../src/shared/ipc-channels';
 import type { AppSettings } from '../../src/shared/types';
+import { DEFAULT_SETTINGS } from '../../src/shared/constants';
 import { AppStateManager } from '../../src/main/app-state';
 
 describe('AppStateManager', () => {
@@ -127,6 +128,7 @@ describe('AppStateManager', () => {
     vi.clearAllMocks();
 
     const settings: AppSettings = {
+      ...DEFAULT_SETTINGS,
       apiBaseURL: 'https://api.openai.com',
       apiKey: 'test-key',
       modelName: 'whisper-1',
@@ -262,6 +264,7 @@ describe('AppStateManager', () => {
 
   it('runs full flow with LLM enabled: transcribe -> process -> paste processed text', async () => {
     mockLoadSettings.mockReturnValue({
+      ...DEFAULT_SETTINGS,
       apiBaseURL: 'https://api.openai.com',
       apiKey: 'test-key',
       modelName: 'whisper-1',
@@ -296,6 +299,8 @@ describe('AppStateManager', () => {
     expect(mockProcessWithLLM).toHaveBeenCalledWith(
       'raw text',
       expect.objectContaining({
+        apiBaseURL: 'https://api.openai.com',
+        apiKey: 'test-key',
         llmModelName: 'gpt-oss-20b',
         llmSystemPrompt: 'prompt',
       }),
@@ -324,8 +329,48 @@ describe('AppStateManager', () => {
     );
   });
 
+  it('uses custom LLM credentials when they are configured', async () => {
+    mockLoadSettings.mockReturnValue({
+      ...DEFAULT_SETTINGS,
+      apiBaseURL: 'https://api.openai.com',
+      apiKey: 'test-key',
+      modelName: 'whisper-1',
+      language: '',
+      hotkeyConfig: {
+        keyCode: 63,
+        keyName: 'F5',
+      },
+      llmPostProcessingEnabled: true,
+      llmApiBaseURL: 'https://llm.example.com',
+      llmApiKey: 'llm-key',
+      llmModelName: 'gpt-oss-20b',
+      llmSystemPrompt: 'prompt',
+    });
+
+    const manager = new AppStateManager();
+
+    manager.startRecording();
+    manager.stopRecordingAndTranscribe();
+    manager.handleRecordingData({
+      samples: new Float32Array([0.3, -0.2, 0.15, -0.05]),
+      inputSampleRate: 44100,
+    });
+
+    await flushLifecycle();
+
+    expect(mockProcessWithLLM).toHaveBeenCalledWith(
+      'raw text',
+      expect.objectContaining({
+        apiBaseURL: 'https://llm.example.com',
+        apiKey: 'llm-key',
+      }),
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
+  });
+
   it('falls back to raw text when LLM fails and stores LLM error message', async () => {
     mockLoadSettings.mockReturnValue({
+      ...DEFAULT_SETTINGS,
       apiBaseURL: 'https://api.openai.com',
       apiKey: 'test-key',
       modelName: 'whisper-1',

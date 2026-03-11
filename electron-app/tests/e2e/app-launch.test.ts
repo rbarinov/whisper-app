@@ -26,6 +26,8 @@ test.describe('renderer app launch', () => {
           language: '',
           hotkeyConfig: { keyCode: 63, keyName: 'F5' },
           llmPostProcessingEnabled: false,
+          llmApiBaseURL: '',
+          llmApiKey: '',
           llmModelName: 'gpt-oss-20b',
           llmSystemPrompt: 'prompt',
         }),
@@ -40,9 +42,14 @@ test.describe('renderer app launch', () => {
         getAudioPath: async () => '',
         showSettings: async () => undefined,
         showHistory: async () => undefined,
+        showOnboarding: async () => undefined,
         quit: async () => undefined,
         startHotkeyCapture: async () => undefined,
         stopHotkeyCapture: async () => undefined,
+        checkPermissions: async () => ({ microphone: 'granted', accessibility: true }),
+        requestMicrophonePermission: async () => true,
+        requestAccessibility: async () => ({ microphone: 'granted', accessibility: true }),
+        openAccessibilitySettings: async () => undefined,
         onStateUpdate: (callback: (state: unknown) => void) => {
           listeners.push(callback);
           callback(initialState);

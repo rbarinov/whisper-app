@@ -52,6 +52,7 @@ describe('Settings Service', () => {
 
     it('should load settings from file when it exists', () => {
       const testSettings: AppSettings = {
+        ...DEFAULT_SETTINGS,
         apiBaseURL: 'https://custom.api.com',
         apiKey: 'sk-test-key-123',
         modelName: 'whisper-v2',
@@ -61,6 +62,8 @@ describe('Settings Service', () => {
           keyName: 'F7',
         },
         llmPostProcessingEnabled: true,
+        llmApiBaseURL: 'https://llm.custom.api.com',
+        llmApiKey: 'sk-llm-key-456',
         llmModelName: 'gpt-4',
         llmSystemPrompt: 'Custom prompt',
       };
@@ -94,6 +97,8 @@ describe('Settings Service', () => {
       expect(loaded.language).toBe(DEFAULT_SETTINGS.language);
       expect(loaded.hotkeyConfig).toEqual(DEFAULT_SETTINGS.hotkeyConfig);
       expect(loaded.llmPostProcessingEnabled).toBe(DEFAULT_SETTINGS.llmPostProcessingEnabled);
+      expect(loaded.llmApiBaseURL).toBe(DEFAULT_SETTINGS.llmApiBaseURL);
+      expect(loaded.llmApiKey).toBe(DEFAULT_SETTINGS.llmApiKey);
       expect(loaded.llmModelName).toBe(DEFAULT_SETTINGS.llmModelName);
       expect(loaded.llmSystemPrompt).toBe(DEFAULT_SETTINGS.llmSystemPrompt);
     });
@@ -159,6 +164,7 @@ describe('Settings Service', () => {
 
     it('should preserve all fields in roundtrip (save then load)', () => {
       const testSettings: AppSettings = {
+        ...DEFAULT_SETTINGS,
         apiBaseURL: 'https://test.api.com',
         apiKey: 'sk-roundtrip-test',
         modelName: 'whisper-test',
@@ -168,6 +174,8 @@ describe('Settings Service', () => {
           keyName: 'F10',
         },
         llmPostProcessingEnabled: true,
+        llmApiBaseURL: 'https://llm.test.api.com',
+        llmApiKey: 'sk-llm-roundtrip',
         llmModelName: 'gpt-test',
         llmSystemPrompt: 'Test prompt',
       };
@@ -262,6 +270,7 @@ describe('Settings Service', () => {
   describe('Integration: save and load roundtrip', () => {
     it('should successfully save and restore complex settings', () => {
       const originalSettings: AppSettings = {
+        ...DEFAULT_SETTINGS,
         apiBaseURL: 'https://integration.test.com',
         apiKey: 'sk-integration-key-12345',
         modelName: 'whisper-integration',
@@ -271,6 +280,8 @@ describe('Settings Service', () => {
           keyName: 'F6',
         },
         llmPostProcessingEnabled: true,
+        llmApiBaseURL: 'https://integration.llm.test.com',
+        llmApiKey: 'sk-integration-llm-key',
         llmModelName: 'gpt-4-turbo',
         llmSystemPrompt: 'Integration test prompt with special chars: "quotes" and \\ backslashes',
       };

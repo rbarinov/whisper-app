@@ -25,6 +25,8 @@ test.describe('settings view', () => {
           language: 'en',
           hotkeyConfig: { keyCode: 63, keyName: 'F5' },
           llmPostProcessingEnabled: false,
+          llmApiBaseURL: '',
+          llmApiKey: '',
           llmModelName: 'gpt-oss-20b',
           llmSystemPrompt: 'System prompt',
         }),
@@ -41,9 +43,14 @@ test.describe('settings view', () => {
         getAudioPath: async () => '',
         showSettings: async () => undefined,
         showHistory: async () => undefined,
+        showOnboarding: async () => undefined,
         quit: async () => undefined,
         startHotkeyCapture: async () => undefined,
         stopHotkeyCapture: async () => undefined,
+        checkPermissions: async () => ({ microphone: 'granted', accessibility: false }),
+        requestMicrophonePermission: async () => true,
+        requestAccessibility: async () => ({ microphone: 'granted', accessibility: false }),
+        openAccessibilitySettings: async () => undefined,
         onStateUpdate: () => () => undefined,
         onOverlayUpdate: () => () => undefined,
         onHotkeyCaptured: () => () => undefined,
@@ -62,21 +69,22 @@ test.describe('settings view', () => {
   });
 
   test('renders API URL and API key inputs', async ({ page }) => {
-    await expect(page.getByText('Base URL')).toBeVisible();
-    await expect(page.getByText('API Key')).toBeVisible();
-    await expect(page.getByPlaceholder('https://api.openai.com')).toHaveValue('https://api.openai.com');
+    await expect(page.getByRole('textbox', { name: 'Base URL', exact: true })).toHaveValue('https://api.openai.com');
+    await expect(page.getByLabel('API Key', { exact: true })).toHaveValue('sk-test');
   });
 
   test('renders model and language inputs', async ({ page }) => {
     await expect(page.getByText('Model', { exact: true })).toBeVisible();
     await expect(page.getByPlaceholder('whisper-1')).toHaveValue('whisper-1');
-    await expect(page.getByPlaceholder('en, ru, de, ...')).toHaveValue('en');
+    await expect(page.getByLabel('Language')).toHaveValue('en');
   });
 
-  test('renders hotkey controls', async ({ page }) => {
-    await expect(page.getByRole('heading', { name: 'Hotkey' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Change' })).toBeVisible();
-    await expect(page.getByText('F5')).toBeVisible();
+  test('renders permissions and llm fallback inputs', async ({ page }) => {
+    await expect(page.getByRole('heading', { name: 'Permissions' })).toBeVisible();
+    await expect(page.getByText('Accessibility', { exact: true })).toBeVisible();
+    await expect(page.getByLabel('Custom Base URL')).toHaveValue('');
+    await expect(page.getByLabel('Custom API Key')).toHaveValue('');
+    await expect(page.getByRole('heading', { name: 'Hotkey' })).toHaveCount(0);
   });
 
   test('updates settings through saveSettings when edited', async ({ page }) => {
