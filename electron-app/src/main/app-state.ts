@@ -1,7 +1,4 @@
 import { BrowserWindow, systemPreferences } from 'electron';
-import * as fs from 'fs';
-import * as path from 'path';
-import { randomUUID } from 'crypto';
 import {
   MIN_RECORDING_DURATION_S,
   OVERLAY_DISMISS_CANCELLED_MS,
@@ -19,33 +16,34 @@ import type {
 } from '../shared/types';
 import { audioPlayerService } from './services/audio-player-service';
 import {
-  addEntry,
   clearAllHistory,
   deleteEntry,
-  getEntries,
-  getRecordingsDir,
   loadHistory,
   updateEntry,
 } from './services/history-service';
 import { HotkeyManager } from './services/hotkey-manager';
-import { encodeWAV, saveRecording } from './services/audio-recorder';
-import { processWithLLM } from './services/llm-service';
-import { isWaylandSession, pasteText } from './services/paste-service';
+import { encodeWAV } from './services/audio-recorder';
+import { isWaylandSession } from './services/paste-service';
 import { loadSettings, saveSettings } from './services/settings-service';
-import { transcribe } from './services/transcription-service';
+import {
+  persistCancelledRecording,
+  prepareRetryTranscription,
+  runRecordingLifecycle,
+  runRetryLifecycle,
+} from './recording-lifecycle';
+import type { RendererRecordingData, LifecycleContext } from './recording-lifecycle';
+
+export type { RendererRecordingData } from './recording-lifecycle';
 
 export interface AppStateSnapshot extends AppState {
   overlayState: OverlayState;
   isWayland: boolean;
 }
-
 export type MicrophonePermissionStatus = 'granted' | 'denied' | 'not-determined';
-
 export interface PermissionSnapshot {
   microphone: MicrophonePermissionStatus;
   accessibility: boolean;
 }
-
 export class AppStateManager {
   private recordingState: RecordingState = { type: 'idle' };
   private history: TranscriptionEntry[] = [];
@@ -64,7 +62,6 @@ export class AppStateManager {
       timeout: NodeJS.Timeout;
     }
     | null = null;
-
   private hotkeyManager: HotkeyManager;
   private mainWindow: BrowserWindow | null = null;
   private overlayWindow: BrowserWindow | null = null;
@@ -78,29 +75,24 @@ export class AppStateManager {
       typeof systemPreferences?.askForMediaAccess === 'function'
     );
   }
-
   private hasMacOSAccessibilityApi(): boolean {
     return (
       process.platform === 'darwin' &&
       typeof systemPreferences?.isTrustedAccessibilityClient === 'function'
     );
   }
-
   constructor() {
     this.settings = loadSettings();
     this.history = loadHistory();
     this.hotkeyManager = new HotkeyManager();
     this.hotkeyManager.setActionCallback((action) => this.handleHotkeyAction(action));
   }
-
   setMainWindow(win: BrowserWindow): void {
     this.mainWindow = win;
   }
-
   setOverlayWindow(win: BrowserWindow): void {
     this.overlayWindow = win;
   }
-
   initialize(options?: { startHotkeyManager?: boolean }): void {
     const permissionSnapshot = this.checkPermissions();
     this.isMicrophoneGranted = permissionSnapshot.microphone === 'granted';
@@ -113,7 +105,6 @@ export class AppStateManager {
     this.broadcastStateUpdate();
     this.broadcastOverlayUpdate(this.overlayState);
   }
-
   startHotkeyManager(): void {
     this.hotkeyManager.start();
   }
@@ -226,7 +217,7 @@ export class AppStateManager {
     this.broadcastStateUpdate();
     this.broadcastOverlayUpdate(this.overlayState);
 
-    void this.runRecordingLifecycle();
+    void runRecordingLifecycle(this.lifecycleContext());
   }
 
   handleRecordingData(data: RendererRecordingData): void {
@@ -235,26 +226,10 @@ export class AppStateManager {
       this.lastRecordingBuffer = wavBuffer;
 
       if (this.pendingCancelledDurationSeconds !== null) {
-        const entryId = randomUUID();
-        const relativeAudioPath = `${entryId}.wav`;
-        const absoluteAudioPath = path.join(getRecordingsDir(), relativeAudioPath);
-
-        try {
-          fs.mkdirSync(getRecordingsDir(), { recursive: true });
-          fs.writeFileSync(absoluteAudioPath, wavBuffer);
-          addEntry({
-            id: entryId,
-            status: 'cancelled',
-            durationSeconds: this.pendingCancelledDurationSeconds,
-            audioFilePath: relativeAudioPath,
-          });
-          this.history = loadHistory();
-          this.broadcastStateUpdate();
-        } catch (error) {
-          console.error('Failed to persist cancelled recording:', error);
-        } finally {
-          this.pendingCancelledDurationSeconds = null;
-        }
+        persistCancelledRecording(wavBuffer, this.pendingCancelledDurationSeconds);
+        this.history = loadHistory();
+        this.broadcastStateUpdate();
+        this.pendingCancelledDurationSeconds = null;
       }
     }
 
@@ -276,30 +251,13 @@ export class AppStateManager {
     if (this.recordingState.type === 'recording') {
       const recordingDurationMs =
         this.recordingStartTime === null ? 0 : Math.max(0, Date.now() - this.recordingStartTime);
-      const shouldPersistCancelledRecording =
-        recordingDurationMs >= MIN_RECORDING_DURATION_S * 1000 && this.lastRecordingBuffer !== null;
+      const meetsMinDuration = recordingDurationMs >= MIN_RECORDING_DURATION_S * 1000;
 
-      this.pendingCancelledDurationSeconds =
-        recordingDurationMs >= MIN_RECORDING_DURATION_S * 1000 ? recordingDurationMs / 1000 : null;
+      this.pendingCancelledDurationSeconds = meetsMinDuration ? recordingDurationMs / 1000 : null;
 
-      if (shouldPersistCancelledRecording && this.lastRecordingBuffer) {
-        const entryId = randomUUID();
-        const relativeAudioPath = `${entryId}.wav`;
-        const absoluteAudioPath = path.join(getRecordingsDir(), relativeAudioPath);
-        try {
-          fs.mkdirSync(getRecordingsDir(), { recursive: true });
-          fs.writeFileSync(absoluteAudioPath, this.lastRecordingBuffer);
-          addEntry({
-            id: entryId,
-            status: 'cancelled',
-            durationSeconds: recordingDurationMs / 1000,
-            audioFilePath: relativeAudioPath,
-          });
-          this.history = loadHistory();
-        } catch (error) {
-          console.error('Failed to persist cancelled recording:', error);
-        }
-
+      if (meetsMinDuration && this.lastRecordingBuffer) {
+        persistCancelledRecording(this.lastRecordingBuffer, recordingDurationMs / 1000);
+        this.history = loadHistory();
         this.pendingCancelledDurationSeconds = null;
       }
 
@@ -340,32 +298,18 @@ export class AppStateManager {
       return;
     }
 
-    const entry = getEntries().find((candidate) => candidate.id === entryId);
-    if (!entry || !entry.audioFilePath || (entry.status !== 'failed' && entry.status !== 'cancelled')) {
+    const prep = prepareRetryTranscription(entryId);
+    if (!prep) {
       return;
     }
 
-    const audioPath = path.join(getRecordingsDir(), entry.audioFilePath);
-    if (!fs.existsSync(audioPath)) {
-      return;
-    }
-
-    const wavBuffer = fs.readFileSync(audioPath);
-    this.lastRecordingBuffer = wavBuffer;
-
-    const retryEntryId = randomUUID();
-    addEntry({
-      id: retryEntryId,
-      status: 'transcribing',
-      durationSeconds: entry.durationSeconds,
-      audioFilePath: entry.audioFilePath,
-    });
+    this.lastRecordingBuffer = prep.wavBuffer;
     this.history = loadHistory();
 
     this.currentAbortController?.abort();
     this.currentAbortController = new AbortController();
 
-    this.activeTranscriptionEntryId = retryEntryId;
+    this.activeTranscriptionEntryId = prep.retryEntryId;
     this.recordingState = { type: 'transcribing' };
     this.overlayState = { type: 'transcribing' };
     this.applyRecordingState(this.recordingState);
@@ -373,184 +317,37 @@ export class AppStateManager {
     this.broadcastStateUpdate();
     this.broadcastOverlayUpdate(this.overlayState);
 
-    void this.runRetryLifecycle(retryEntryId, wavBuffer, {
-      durationSeconds: entry.durationSeconds,
-      audioFilePath: entry.audioFilePath,
+    void runRetryLifecycle(this.lifecycleContext(), prep.retryEntryId, prep.wavBuffer, {
+      durationSeconds: prep.durationSeconds,
+      audioFilePath: prep.audioFilePath,
     });
   }
 
-  private async runRecordingLifecycle(): Promise<void> {
-    const entryId = randomUUID();
-    this.activeTranscriptionEntryId = entryId;
-    addEntry({ id: entryId, status: 'transcribing' });
-    this.history = loadHistory();
-    this.broadcastStateUpdate();
-
-    this.currentAbortController?.abort();
-    this.currentAbortController = new AbortController();
-
-    try {
-      const recordingData = await this.waitForRecordingData();
-      const wavBuffer = encodeWAV(recordingData.samples, recordingData.inputSampleRate);
-      this.lastRecordingBuffer = wavBuffer;
-      const recording = await saveRecording(
-        recordingData.samples,
-        recordingData.inputSampleRate,
-        getRecordingsDir()
-      );
-
-      const relativeAudioPath = path.basename(recording.filePath);
-      if (recording.duration < MIN_RECORDING_DURATION_S) {
-        updateEntry(entryId, {
-          status: 'cancelled',
-          durationSeconds: recording.duration,
-          audioFilePath: relativeAudioPath,
-        });
-        this.history = loadHistory();
-        this.activeTranscriptionEntryId = null;
-        this.recordingState = { type: 'idle' };
-        this.overlayState = { type: 'cancelled' };
-        this.applyRecordingState(this.recordingState);
-        this.broadcastStateUpdate();
-        this.broadcastOverlayUpdate(this.overlayState);
-        this.scheduleOverlayDismiss(this.overlayState);
-        return;
-      }
-
-      await this.runTranscriptionFromBuffer(this.lastRecordingBuffer ?? wavBuffer, entryId, {
-        durationSeconds: recording.duration,
-        audioFilePath: relativeAudioPath,
-      });
-    } catch (error) {
-      if (this.activeTranscriptionEntryId !== entryId) {
-        this.history = loadHistory();
-        return;
-      }
-
-      const message = error instanceof Error ? error.message : String(error);
-      try {
-        updateEntry(entryId, {
-          status: 'failed',
-          errorMessage: message,
-        });
-      } catch (e) { console.error('Failed to update failed entry:', e); }
-
-      this.history = loadHistory();
-      this.activeTranscriptionEntryId = null;
-      this.recordingState = { type: 'error', message };
-      this.overlayState = { type: 'error', message };
-      this.applyRecordingState(this.recordingState);
-      this.broadcastStateUpdate();
-      this.broadcastOverlayUpdate(this.overlayState);
-      this.scheduleOverlayDismiss(this.overlayState);
-    } finally {
-      this.currentAbortController = null;
-    }
-  }
-
-  private async runRetryLifecycle(
-    entryId: string,
-    wavBuffer: Buffer,
-    entryAudioMetadata: { durationSeconds: number; audioFilePath: string }
-  ): Promise<void> {
-    try {
-      await this.runTranscriptionFromBuffer(wavBuffer, entryId, entryAudioMetadata);
-    } catch (error) {
-      if (this.activeTranscriptionEntryId !== entryId) {
-        this.history = loadHistory();
-        return;
-      }
-
-      const message = error instanceof Error ? error.message : String(error);
-      try {
-        updateEntry(entryId, {
-          status: 'failed',
-          errorMessage: message,
-        });
-      } catch (e) { console.error('Failed to update failed entry:', e); }
-
-      this.history = loadHistory();
-      this.activeTranscriptionEntryId = null;
-      this.recordingState = { type: 'error', message };
-      this.overlayState = { type: 'error', message };
-      this.applyRecordingState(this.recordingState);
-      this.broadcastStateUpdate();
-      this.broadcastOverlayUpdate(this.overlayState);
-      this.scheduleOverlayDismiss(this.overlayState);
-    } finally {
-      this.currentAbortController = null;
-    }
-  }
-
-  private async runTranscriptionFromBuffer(
-    wavBuffer: Buffer,
-    entryId: string,
-    entryAudioMetadata?: { durationSeconds: number; audioFilePath: string }
-  ): Promise<void> {
-    const rawText = await transcribe(wavBuffer, {
-      apiBaseURL: this.settings.apiBaseURL,
-      apiKey: this.settings.apiKey,
-      modelName: this.settings.modelName,
-      language: this.settings.language,
-    }, {
-      signal: this.currentAbortController?.signal,
-    });
-
-    let finalText = rawText;
-    let errorMessage: string | undefined;
-
-    if (this.activeTranscriptionEntryId !== entryId) {
-      return;
-    }
-
-    if (this.settings.llmPostProcessingEnabled) {
-      this.recordingState = { type: 'processing' };
-      this.overlayState = { type: 'processing' };
-      this.applyRecordingState(this.recordingState);
-      this.broadcastStateUpdate();
-      this.broadcastOverlayUpdate(this.overlayState);
-
-      try {
-        finalText = await processWithLLM(rawText, {
-          apiBaseURL: this.settings.llmApiBaseURL.trim() || this.settings.apiBaseURL,
-          apiKey: this.settings.llmApiKey.trim() || this.settings.apiKey,
-          llmModelName: this.settings.llmModelName,
-          llmSystemPrompt: this.settings.llmSystemPrompt,
-        }, {
-          signal: this.currentAbortController?.signal,
-        });
-      } catch (error) {
-        finalText = rawText;
-        const reason = error instanceof Error ? error.message : String(error);
-        errorMessage = `LLM failed: ${reason}`;
-      }
-    }
-
-    if (this.activeTranscriptionEntryId !== entryId) {
-      return;
-    }
-
-    updateEntry(entryId, {
-      status: 'successful',
-      ...entryAudioMetadata,
-      rawText,
-      text: finalText,
-      errorMessage,
-    });
-
-    this.history = loadHistory();
-    this.activeTranscriptionEntryId = null;
-    this.recordingState = { type: 'idle' };
-    this.overlayState = { type: 'done', text: finalText };
-    this.applyRecordingState(this.recordingState);
-    this.broadcastStateUpdate();
-    this.broadcastOverlayUpdate(this.overlayState);
-    this.scheduleOverlayDismiss(this.overlayState);
-
-    const pasteResult = await pasteText(finalText);
-    if (pasteResult.method === 'clipboard-only' && pasteResult.message) {
-      this.mainWindow?.webContents.send(IPC.WAYLAND_PASTE_NOTIFICATION, pasteResult.message);
-    }
+  private lifecycleContext(): LifecycleContext {
+    const self = this;
+    return {
+      get activeTranscriptionEntryId() { return self.activeTranscriptionEntryId; },
+      set activeTranscriptionEntryId(v) { self.activeTranscriptionEntryId = v; },
+      get currentAbortController() { return self.currentAbortController; },
+      set currentAbortController(v) { self.currentAbortController = v; },
+      get lastRecordingBuffer() { return self.lastRecordingBuffer; },
+      set lastRecordingBuffer(v) { self.lastRecordingBuffer = v; },
+      get recordingState() { return self.recordingState; },
+      set recordingState(v) { self.recordingState = v; },
+      get overlayState() { return self.overlayState; },
+      set overlayState(v) { self.overlayState = v; },
+      get history() { return self.history; },
+      set history(v) { self.history = v; },
+      get settings() { return self.settings; },
+      applyRecordingState: (state) => this.applyRecordingState(state),
+      broadcastStateUpdate: () => this.broadcastStateUpdate(),
+      broadcastOverlayUpdate: (state) => this.broadcastOverlayUpdate(state),
+      scheduleOverlayDismiss: (state) => this.scheduleOverlayDismiss(state),
+      sendWaylandPasteNotification: (message) => {
+        this.mainWindow?.webContents.send(IPC.WAYLAND_PASTE_NOTIFICATION, message);
+      },
+      waitForRecordingData: () => this.waitForRecordingData(),
+    };
   }
 
   private waitForRecordingData(): Promise<RendererRecordingData> {
@@ -700,7 +497,3 @@ export class AppStateManager {
 
 export const appStateManager = new AppStateManager();
 
-interface RendererRecordingData {
-  samples: Float32Array;
-  inputSampleRate: number;
-}
