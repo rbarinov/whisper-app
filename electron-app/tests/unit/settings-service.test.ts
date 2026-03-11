@@ -5,6 +5,21 @@ import * as os from 'os';
 import type { AppSettings } from '../../src/shared/types';
 import { DEFAULT_SETTINGS } from '../../src/shared/constants';
 
+/**
+ * Platform-aware expected keyCode helper.
+ * On macOS, loadSettings() passes through the saved keyCode as-is.
+ * On non-macOS, loadSettings() maps keyName → uiohook keyCode (ignoring saved value).
+ */
+const UIOHOOK_KEY_NAME_TO_CODE: Record<string, number> = {
+  F1: 59, F2: 60, F3: 61, F4: 62, F5: 63, F6: 64,
+  F7: 65, F8: 66, F9: 67, F10: 68, F11: 87, F12: 88,
+};
+
+function expectedKeyCode(savedCode: number, keyName: string): number {
+  if (process.platform === 'darwin') return savedCode;
+  return UIOHOOK_KEY_NAME_TO_CODE[keyName] ?? savedCode;
+}
+
 // Mock electron module before importing settings-service
 vi.mock('electron', () => ({
   app: {
@@ -73,9 +88,15 @@ describe('Settings Service', () => {
       fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
       fs.writeFileSync(settingsPath, JSON.stringify(testSettings, null, 2));
 
-      // Load and verify
+      // Load and verify — keyCode is platform-normalized
       const loaded = loadSettings();
-      expect(loaded).toEqual(testSettings);
+      expect(loaded).toEqual({
+        ...testSettings,
+        hotkeyConfig: {
+          ...testSettings.hotkeyConfig,
+          keyCode: expectedKeyCode(49, 'F7'),
+        },
+      });
     });
 
     it('should handle partial data by filling missing fields from defaults', () => {
@@ -95,7 +116,10 @@ describe('Settings Service', () => {
       expect(loaded.modelName).toBe('custom-model');
       expect(loaded.apiBaseURL).toBe(DEFAULT_SETTINGS.apiBaseURL);
       expect(loaded.language).toBe(DEFAULT_SETTINGS.language);
-      expect(loaded.hotkeyConfig).toEqual(DEFAULT_SETTINGS.hotkeyConfig);
+      expect(loaded.hotkeyConfig).toEqual({
+        ...DEFAULT_SETTINGS.hotkeyConfig,
+        keyCode: expectedKeyCode(DEFAULT_SETTINGS.hotkeyConfig.keyCode, DEFAULT_SETTINGS.hotkeyConfig.keyName),
+      });
       expect(loaded.llmPostProcessingEnabled).toBe(DEFAULT_SETTINGS.llmPostProcessingEnabled);
       expect(loaded.llmApiBaseURL).toBe(DEFAULT_SETTINGS.llmApiBaseURL);
       expect(loaded.llmApiKey).toBe(DEFAULT_SETTINGS.llmApiKey);
@@ -127,7 +151,7 @@ describe('Settings Service', () => {
       fs.writeFileSync(settingsPath, JSON.stringify(partialSettings));
 
       const loaded = loadSettings();
-      expect(loaded.hotkeyConfig.keyCode).toBe(42);
+      expect(loaded.hotkeyConfig.keyCode).toBe(expectedKeyCode(42, DEFAULT_SETTINGS.hotkeyConfig.keyName));
       expect(loaded.hotkeyConfig.keyName).toBe(DEFAULT_SETTINGS.hotkeyConfig.keyName);
     });
   });
@@ -186,8 +210,14 @@ describe('Settings Service', () => {
       // Load
       const loaded = loadSettings();
 
-      // Verify all fields
-      expect(loaded).toEqual(testSettings);
+      // Verify all fields — keyCode is platform-normalized
+      expect(loaded).toEqual({
+        ...testSettings,
+        hotkeyConfig: {
+          ...testSettings.hotkeyConfig,
+          keyCode: expectedKeyCode(100, 'F10'),
+        },
+      });
     });
 
     it('should overwrite existing file', () => {
@@ -292,8 +322,14 @@ describe('Settings Service', () => {
       // Load
       const restored = loadSettings();
 
-      // Verify complete equality
-      expect(restored).toEqual(originalSettings);
+      // Verify complete equality — keyCode is platform-normalized
+      expect(restored).toEqual({
+        ...originalSettings,
+        hotkeyConfig: {
+          ...originalSettings.hotkeyConfig,
+          keyCode: expectedKeyCode(64, 'F6'),
+        },
+      });
       expect(restored.apiKey).toBe(originalSettings.apiKey);
       expect(restored.llmSystemPrompt).toBe(originalSettings.llmSystemPrompt);
     });
