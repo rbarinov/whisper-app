@@ -47,7 +47,12 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: WhisperApp-macOS
-          path: electron-app/dist/*.{dmg,zip,exe,AppImage,deb,rpm,blockmap,yml,yaml}
+          path: |
+            electron-app/release/*.dmg
+            electron-app/release/*.zip
+            electron-app/release/*.blockmap
+            electron-app/release/*.yml
+            electron-app/release/*.yaml
 
   build-windows:
     runs-on: windows-latest
@@ -90,7 +95,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: WhisperApp-Windows
-          path: electron-app/dist/*.{exe,blockmap,yml,yaml}
+          path: |
+            electron-app/release/*.exe
+            electron-app/release/*.blockmap
+            electron-app/release/*.yml
+            electron-app/release/*.yaml
 
   build-linux:
     runs-on: ubuntu-22.04
@@ -135,4 +144,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: WhisperApp-Linux
-          path: electron-app/dist/*.{AppImage,deb,rpm,blockmap,yml,yaml}
+          path: |
+            electron-app/release/*.AppImage
+            electron-app/release/*.deb
+            electron-app/release/*.rpm
+            electron-app/release/*.blockmap
+            electron-app/release/*.yml
+            electron-app/release/*.yaml
