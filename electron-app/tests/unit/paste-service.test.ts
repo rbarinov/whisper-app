@@ -3,16 +3,20 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 vi.mock('electron', () => ({
   clipboard: {
     writeText: vi.fn(),
+    readText: vi.fn().mockReturnValue(''),
   },
 }));
 
-import { clipboard } from 'electron';
+vi.mock('child_process', () => ({
+  execFile: vi.fn((_cmd: string, _args: string[], cb: (err: Error | null) => void) => {
+    cb(null);
+  }),
+}));
+
 import {
   isWaylandSession,
-  getPasteModifier,
   pasteText,
 } from '../../src/main/services/paste-service';
-import type { KeyboardSimulator } from '../../src/main/services/paste-service';
 
 describe('Paste Service', () => {
   const originalEnv = process.env;
@@ -57,42 +61,24 @@ describe('Paste Service', () => {
     });
   });
 
-  describe('getPasteModifier', () => {
-    it('returns Meta on darwin', () => {
-      Object.defineProperty(process, 'platform', { value: 'darwin' });
-      expect(getPasteModifier()).toBe('Meta');
-    });
-
-    it('returns Control on linux', () => {
-      Object.defineProperty(process, 'platform', { value: 'linux' });
-      expect(getPasteModifier()).toBe('Control');
-    });
-
-    it('returns Control on win32', () => {
-      Object.defineProperty(process, 'platform', { value: 'win32' });
-      expect(getPasteModifier()).toBe('Control');
-    });
-  });
-
   describe('pasteText', () => {
-    it('writes text to clipboard', async () => {
+    it('writes text to clipboard and simulates keystroke', async () => {
       const clipboardWrite = vi.fn();
-      await pasteText('hello world', {
+      const clipboardRead = vi.fn().mockReturnValue('');
+      const simulateKeystroke = vi.fn().mockResolvedValue(undefined);
+
+      const result = await pasteText('hello world', {
         clipboardWrite,
-        keyboardSimulator: null,
+        clipboardRead,
+        simulateKeystroke,
         isWayland: false,
+        delayMs: 0,
       });
 
       expect(clipboardWrite).toHaveBeenCalledWith('hello world');
-    });
-
-    it('uses electron clipboard.writeText by default when no clipboardWrite provided', async () => {
-      await pasteText('test text', {
-        keyboardSimulator: null,
-        isWayland: false,
-      });
-
-      expect(clipboard.writeText).toHaveBeenCalledWith('test text');
+      expect(simulateKeystroke).toHaveBeenCalled();
+      expect(result.success).toBe(true);
+      expect(result.method).toBe('keyboard');
     });
 
     it('returns clipboard-only result on Wayland with user-facing message', async () => {
@@ -108,81 +94,69 @@ describe('Paste Service', () => {
       expect(clipboardWrite).toHaveBeenCalledWith('wayland text');
     });
 
-    it('returns clipboard-only when simulator is null (nut-js unavailable)', async () => {
+    it('saves and restores previous clipboard contents', async () => {
       const clipboardWrite = vi.fn();
-      const result = await pasteText('no simulator', {
+      const clipboardRead = vi.fn()
+        .mockReturnValueOnce('previous content')  // first call: save previous clipboard
+        .mockReturnValueOnce('new text');          // second call: restore check (clipboard still has our text)
+      const simulateKeystroke = vi.fn().mockResolvedValue(undefined);
+
+      await pasteText('new text', {
         clipboardWrite,
-        keyboardSimulator: null,
-        isWayland: false,
-      });
-
-      expect(result.success).toBe(true);
-      expect(result.method).toBe('clipboard-only');
-      expect(result.message).toContain('keyboard simulation unavailable');
-    });
-
-    it('uses Meta+V modifier on macOS (non-Wayland)', async () => {
-      Object.defineProperty(process, 'platform', { value: 'darwin' });
-      const mockSimulator: KeyboardSimulator = {
-        pressKey: vi.fn().mockResolvedValue(undefined),
-      };
-
-      const result = await pasteText('mac paste', {
-        clipboardWrite: vi.fn(),
-        keyboardSimulator: mockSimulator,
+        clipboardRead,
+        simulateKeystroke,
         isWayland: false,
         delayMs: 0,
+        restoreDelayMs: 10,
       });
 
-      expect(result.success).toBe(true);
-      expect(result.method).toBe('keyboard');
-      expect(mockSimulator.pressKey).toHaveBeenCalledWith('Meta', 'V');
+      // First call: save previous clipboard (via clipboardRead)
+      expect(clipboardRead).toHaveBeenCalled();
+      // First clipboardWrite: set the new text
+      expect(clipboardWrite).toHaveBeenCalledWith('new text');
+
+      // Wait for clipboard restore timeout
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      // clipboardRead is called again to check if our text is still there
+      // clipboardWrite should be called again to restore
+      expect(clipboardWrite).toHaveBeenCalledWith('previous content');
     });
 
-    it('uses Control+V modifier on Windows (non-Wayland)', async () => {
-      Object.defineProperty(process, 'platform', { value: 'win32' });
-      const mockSimulator: KeyboardSimulator = {
-        pressKey: vi.fn().mockResolvedValue(undefined),
-      };
+    it('does not restore clipboard if user copied something else', async () => {
+      const calls: string[] = [];
+      const clipboardWrite = vi.fn((text: string) => calls.push(`write:${text}`));
+      // First read returns previous content, second read returns something different
+      const clipboardRead = vi.fn()
+        .mockReturnValueOnce('previous content')
+        .mockReturnValueOnce('user copied something new');
+      const simulateKeystroke = vi.fn().mockResolvedValue(undefined);
 
-      const result = await pasteText('win paste', {
-        clipboardWrite: vi.fn(),
-        keyboardSimulator: mockSimulator,
+      await pasteText('transcribed text', {
+        clipboardWrite,
+        clipboardRead,
+        simulateKeystroke,
         isWayland: false,
         delayMs: 0,
+        restoreDelayMs: 10,
       });
 
-      expect(result.success).toBe(true);
-      expect(result.method).toBe('keyboard');
-      expect(mockSimulator.pressKey).toHaveBeenCalledWith('Control', 'V');
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      // Should NOT restore because clipboard changed
+      expect(clipboardWrite).toHaveBeenCalledTimes(1);
+      expect(clipboardWrite).toHaveBeenCalledWith('transcribed text');
     });
 
-    it('uses Control+V modifier on Linux (non-Wayland)', async () => {
-      Object.defineProperty(process, 'platform', { value: 'linux' });
-      const mockSimulator: KeyboardSimulator = {
-        pressKey: vi.fn().mockResolvedValue(undefined),
-      };
-
-      const result = await pasteText('linux paste', {
-        clipboardWrite: vi.fn(),
-        keyboardSimulator: mockSimulator,
-        isWayland: false,
-        delayMs: 0,
-      });
-
-      expect(result.success).toBe(true);
-      expect(result.method).toBe('keyboard');
-      expect(mockSimulator.pressKey).toHaveBeenCalledWith('Control', 'V');
-    });
-
-    it('falls back to clipboard-only when simulator throws', async () => {
-      const mockSimulator: KeyboardSimulator = {
-        pressKey: vi.fn().mockRejectedValue(new Error('Permission denied')),
-      };
+    it('falls back to clipboard-only when keystroke simulation fails', async () => {
+      const clipboardWrite = vi.fn();
+      const clipboardRead = vi.fn().mockReturnValue('');
+      const simulateKeystroke = vi.fn().mockRejectedValue(new Error('Permission denied'));
 
       const result = await pasteText('fail paste', {
-        clipboardWrite: vi.fn(),
-        keyboardSimulator: mockSimulator,
+        clipboardWrite,
+        clipboardRead,
+        simulateKeystroke,
         isWayland: false,
         delayMs: 0,
       });
@@ -193,36 +167,33 @@ describe('Paste Service', () => {
     });
 
     it('applies delay before keyboard simulation', async () => {
-      const mockSimulator: KeyboardSimulator = {
-        pressKey: vi.fn().mockResolvedValue(undefined),
-      };
+      const simulateKeystroke = vi.fn().mockResolvedValue(undefined);
 
       const start = Date.now();
       await pasteText('delayed paste', {
         clipboardWrite: vi.fn(),
-        keyboardSimulator: mockSimulator,
+        clipboardRead: vi.fn().mockReturnValue(''),
+        simulateKeystroke,
         isWayland: false,
         delayMs: 100,
       });
       const elapsed = Date.now() - start;
 
       expect(elapsed).toBeGreaterThanOrEqual(90);
-      expect(mockSimulator.pressKey).toHaveBeenCalled();
+      expect(simulateKeystroke).toHaveBeenCalled();
     });
 
-    it('skips keyboard simulation on Wayland even when simulator is provided', async () => {
-      const mockSimulator: KeyboardSimulator = {
-        pressKey: vi.fn().mockResolvedValue(undefined),
-      };
+    it('skips keyboard simulation on Wayland even when simulateKeystroke is provided', async () => {
+      const simulateKeystroke = vi.fn().mockResolvedValue(undefined);
 
       const result = await pasteText('wayland skip', {
         clipboardWrite: vi.fn(),
-        keyboardSimulator: mockSimulator,
+        simulateKeystroke,
         isWayland: true,
       });
 
       expect(result.method).toBe('clipboard-only');
-      expect(mockSimulator.pressKey).not.toHaveBeenCalled();
+      expect(simulateKeystroke).not.toHaveBeenCalled();
     });
   });
 });

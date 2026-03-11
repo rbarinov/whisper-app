@@ -1,13 +1,10 @@
 import { clipboard } from 'electron';
+import { execFile } from 'child_process';
 
 export interface PasteResult {
   success: boolean;
   method: 'keyboard' | 'clipboard-only';
   message?: string;
-}
-
-export interface KeyboardSimulator {
-  pressKey(modifier: string, key: string): Promise<void>;
 }
 
 export function isWaylandSession(): boolean {
@@ -17,52 +14,91 @@ export function isWaylandSession(): boolean {
   );
 }
 
-export function getPasteModifier(): string {
-  return process.platform === 'darwin' ? 'Meta' : 'Control';
-}
-
-function tryLoadNutJs(): KeyboardSimulator | null {
-  try {
-    // dynamic require — @nut-tree/nut-js is an optional peer dependency
-    const { keyboard, Key } = require('@nut-tree/nut-js');
-    return {
-      async pressKey(modifier: string): Promise<void> {
-        const modKey = modifier === 'Meta' ? Key.LeftSuper : Key.LeftControl;
-        await keyboard.pressKey(modKey, Key.V);
-        await keyboard.releaseKey(modKey, Key.V);
-      },
-    };
-  } catch {
-    return null;
-  }
-}
-
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export interface PasteOptions {
-  clipboardWrite?: (text: string) => void;
-  keyboardSimulator?: KeyboardSimulator | null;
-  isWayland?: boolean;
-  delayMs?: number;
+/**
+ * Simulate Cmd+V (macOS), Ctrl+V (Windows), or xdotool (Linux)
+ * using only built-in OS tools — no native dependencies required.
+ */
+async function simulatePasteKeystroke(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (process.platform === 'darwin') {
+      // AppleScript: simulate Cmd+V keystroke in the frontmost application
+      execFile(
+        'osascript',
+        ['-e', 'tell application "System Events" to keystroke "v" using command down'],
+        (error) => {
+          if (error) reject(error);
+          else resolve();
+        },
+      );
+    } else if (process.platform === 'win32') {
+      // PowerShell: simulate Ctrl+V
+      execFile(
+        'powershell',
+        [
+          '-NoProfile',
+          '-NonInteractive',
+          '-Command',
+          'Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait("^v")',
+        ],
+        (error) => {
+          if (error) reject(error);
+          else resolve();
+        },
+      );
+    } else {
+      // Linux X11: use xdotool to simulate Ctrl+V
+      execFile('xdotool', ['key', 'ctrl+v'], (error) => {
+        if (error) reject(error);
+        else resolve();
+      });
+    }
+  });
 }
 
+export interface PasteOptions {
+  delayMs?: number;
+  restoreDelayMs?: number;
+  isWayland?: boolean;
+  /** Override clipboard write for testing */
+  clipboardWrite?: (text: string) => void;
+  /** Override clipboard read for testing */
+  clipboardRead?: () => string;
+  /** Override keystroke simulation for testing */
+  simulateKeystroke?: () => Promise<void>;
+}
+
+/**
+ * Paste text into the active application.
+ *
+ * Flow (mirrors native Swift PasteService):
+ *   1. Save current clipboard contents
+ *   2. Write transcribed text to clipboard
+ *   3. Wait briefly (50ms) for clipboard to settle
+ *   4. Simulate Cmd+V / Ctrl+V keystroke
+ *   5. Wait briefly (150ms) for target app to read clipboard
+ *   6. Restore previous clipboard contents
+ */
 export async function pasteText(
   text: string,
   options: PasteOptions = {},
 ): Promise<PasteResult> {
   const {
-    clipboardWrite = (t: string) => clipboard.writeText(t),
-    keyboardSimulator,
-    isWayland,
     delayMs = 50,
+    restoreDelayMs = 500,
+    clipboardWrite = (t: string) => clipboard.writeText(t),
+    clipboardRead = () => clipboard.readText(),
+    simulateKeystroke = simulatePasteKeystroke,
+    isWayland,
   } = options;
 
-  clipboardWrite(text);
-
+  // On Wayland, keyboard simulation doesn't work — clipboard-only fallback
   const wayland = isWayland !== undefined ? isWayland : isWaylandSession();
   if (wayland) {
+    clipboardWrite(text);
     return {
       success: true,
       method: 'clipboard-only',
@@ -70,22 +106,32 @@ export async function pasteText(
     };
   }
 
-  const simulator =
-    keyboardSimulator !== undefined ? keyboardSimulator : tryLoadNutJs();
+  // 1. Save previous clipboard contents
+  const previousClipboard = clipboardRead();
 
-  if (!simulator) {
-    return {
-      success: true,
-      method: 'clipboard-only',
-      message: 'Text copied to clipboard (keyboard simulation unavailable)',
-    };
-  }
+  // 2. Write transcribed text to clipboard
+  clipboardWrite(text);
+  clipboardWrite(text);
 
   try {
+    // 3. Small delay before simulating keystroke (let clipboard settle)
     await delay(delayMs);
 
-    const modifier = getPasteModifier();
-    await simulator.pressKey(modifier, 'V');
+    // 4. Simulate paste keystroke
+    await simulateKeystroke();
+
+    // 5. Restore previous clipboard after target app reads it
+    setTimeout(() => {
+      try {
+        // Only restore if clipboard still contains our text
+        // (user may have copied something else in the meantime)
+        if (clipboardRead() === text && previousClipboard !== text) {
+          clipboardWrite(previousClipboard);
+        }
+      } catch {
+        // Clipboard restore is best-effort
+      }
+    }, restoreDelayMs);
 
     return {
       success: true,
