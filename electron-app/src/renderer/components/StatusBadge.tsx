@@ -13,12 +13,12 @@ const sizeClasses: Record<StatusBadgeSize, string> = {
 };
 
 const statusClasses: Record<StatusType, string> = {
-  idle: 'bg-idle shadow-[0_0_0_4px_rgba(34,197,94,0.12)]',
-  recording: 'bg-recording animate-pulse shadow-[0_0_0_4px_rgba(239,68,68,0.14)]',
-  transcribing: 'bg-transcribing shadow-[0_0_0_4px_rgba(59,130,246,0.14)]',
-  processing: 'bg-processing shadow-[0_0_0_4px_rgba(139,92,246,0.14)]',
-  error: 'bg-error shadow-[0_0_0_4px_rgba(249,115,22,0.14)]',
-  cancelled: 'bg-cancelled shadow-[0_0_0_4px_rgba(107,114,128,0.14)]',
+  idle: 'bg-idle shadow-[0_0_0_6px_rgba(22,153,118,0.11)]',
+  recording: 'bg-recording animate-pulse shadow-[0_0_0_6px_rgba(232,93,80,0.12)]',
+  transcribing: 'bg-transcribing shadow-[0_0_0_6px_rgba(70,117,216,0.12)]',
+  processing: 'bg-processing shadow-[0_0_0_6px_rgba(195,139,54,0.12)]',
+  error: 'bg-error shadow-[0_0_0_6px_rgba(217,119,69,0.12)]',
+  cancelled: 'bg-cancelled shadow-[0_0_0_6px_rgba(122,129,125,0.12)]',
 };
 
 function joinClasses(...classes: string[]) {
@@ -30,7 +30,7 @@ export function StatusBadge({ status, size = 'md' }: StatusBadgeProps) {
     <span
       aria-label={`${status} status`}
       className={joinClasses(
-        'inline-flex rounded-full border border-white/70 ring-1 ring-slate-950/5',
+        'inline-flex rounded-full border border-white/75 ring-1 ring-[#15231e]/5',
         sizeClasses[size],
         statusClasses[status],
       )}
