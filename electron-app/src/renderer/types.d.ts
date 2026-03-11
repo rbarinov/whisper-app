@@ -32,6 +32,7 @@ declare global {
       requestMicrophonePermission: () => Promise<boolean>;
       requestAccessibility: () => Promise<PermissionState>;
       openAccessibilitySettings: () => Promise<void>;
+      openExternalUrl: (url: string) => Promise<void>;
       closeWindow?: () => Promise<void>;
       minimizeWindow?: () => Promise<void>;
       toggleMaximizeWindow?: () => Promise<void>;

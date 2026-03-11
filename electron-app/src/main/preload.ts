@@ -34,6 +34,7 @@ contextBridge.exposeInMainWorld('api', {
   requestMicrophonePermission: () => ipcRenderer.invoke(IPC.REQUEST_MIC_PERMISSION),
   requestAccessibility: () => ipcRenderer.invoke(IPC.REQUEST_ACCESSIBILITY),
   openAccessibilitySettings: () => ipcRenderer.invoke(IPC.OPEN_ACCESSIBILITY_SETTINGS),
+  openExternalUrl: (url: string) => ipcRenderer.invoke(IPC.OPEN_EXTERNAL_URL, url),
   closeWindow: () => ipcRenderer.invoke(IPC.WINDOW_CLOSE),
   minimizeWindow: () => ipcRenderer.invoke(IPC.WINDOW_MINIMIZE),
   toggleMaximizeWindow: () => ipcRenderer.invoke(IPC.WINDOW_TOGGLE_MAXIMIZE),

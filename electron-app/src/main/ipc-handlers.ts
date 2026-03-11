@@ -204,6 +204,9 @@ export function registerIpcHandlers(appState: AppStateManager): void {
       'x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility'
     );
   });
+  ipcMain.handle(IPC.OPEN_EXTERNAL_URL, async (_event: unknown, url: string) => {
+    await shell.openExternal(url);
+  });
   ipcMain.handle(IPC.WINDOW_CLOSE, async (event: IpcMainInvokeEvent) => {
     BrowserWindow.fromWebContents(event.sender)?.close();
   });

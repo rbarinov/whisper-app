@@ -28,6 +28,7 @@ export const IPC = {
   REQUEST_MIC_PERMISSION: 'request-mic-permission',
   REQUEST_ACCESSIBILITY: 'request-accessibility',
   OPEN_ACCESSIBILITY_SETTINGS: 'open-accessibility-settings',
+  OPEN_EXTERNAL_URL: 'open-external-url',
   WINDOW_CLOSE: 'window-close',
   WINDOW_MINIMIZE: 'window-minimize',
   WINDOW_TOGGLE_MAXIMIZE: 'window-toggle-maximize',
