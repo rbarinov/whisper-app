@@ -1,0 +1,59 @@
+Task 8: Transcription Service (Whisper API with Retry) — Evidence
+===================================================================
+
+## Files Created
+
+1. electron-app/src/main/services/transcription-service.ts (257 lines)
+   - TranscriptionError class with typed error codes
+   - TranscriptionSettings interface
+   - HttpClient interface for dependency injection
+   - _setHttpClient() for test overrides
+   - buildMultipartBody() — manual multipart/form-data construction
+   - transcribe() — main function with retry logic
+   - doRequest() — HTTP request using Node built-in http/https
+
+2. electron-app/tests/unit/transcription-service.test.ts (355 lines)
+   - 12 test cases (9 required + 3 extra)
+
+## Implementation Details
+
+- Uses Node.js built-in http/https (NO axios, NO node-fetch, NO form-data)
+- Multipart built manually with Buffer.concat (NO FormData browser API)
+- Retry: 3 attempts, delays [500, 1500, 3000]ms (from constants)
+- Timeout: 60000ms (from WHISPER_TIMEOUT_MS constant)
+- Retries on: 5xx, 408, 429, network errors
+- NO retry on: 4xx (except 408/429), NO_API_KEY, INVALID_URL, DECODING_ERROR
+- http vs https module selected based on URL protocol
+
+## Test Results
+
+All 53 tests pass (4 test files):
+
+ ✓ tests/unit/example.test.ts (3 tests)
+ ✓ tests/unit/settings-service.test.ts (15 tests)
+ ✓ tests/unit/transcription-service.test.ts (12 tests)
+ ✓ tests/unit/history-service.test.ts (23 tests)
+
+ Test Files  4 passed (4)
+       Tests  53 passed (53)
+
+## Required Test Coverage
+
+1. ✅ Returns text on 200 response
+2. ✅ Retries on 500 (checks retry count = 3)
+3. ✅ Retries on 429 (rate limit)
+4. ✅ Does NOT retry on 400 (bad request) — requestCount = 1
+5. ✅ Does NOT retry on 401 (unauthorized) — requestCount = 1
+6. ✅ Throws on empty API key (code = NO_API_KEY)
+7. ✅ Includes language field when non-empty
+8. ✅ Skips language field when empty
+9. ✅ Constructs multipart body correctly (model, file, boundary)
+
+## Extra Tests
+10. ✅ Throws after exhausting retries on persistent 500
+11. ✅ Throws on invalid API base URL
+12. ✅ Retries on 408 timeout
+
+## LSP Diagnostics
+- transcription-service.ts: 0 errors
+- transcription-service.test.ts: 0 errors

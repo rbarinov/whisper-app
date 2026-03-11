@@ -1,0 +1,48 @@
+Task 27 — E2E Test Suite using Playwright (Renderer-focused, no Electron launch)
+Date: 2026-03-11
+
+Implemented files:
+- electron-app/tests/e2e/app-launch.test.ts
+- electron-app/tests/e2e/settings.test.ts
+- electron-app/tests/e2e/history.test.ts
+- electron-app/tests/e2e/overlay.test.ts
+- electron-app/tests/e2e/recording-flow.test.ts
+
+Playwright config update:
+- File: electron-app/playwright.config.ts
+- Project scope limited to chromium
+- baseURL set to file renderer bundle:
+  file://${process.cwd()}/dist/renderer/
+- No Electron binary launch, no _electron.launch()
+
+Renderer-focused E2E approach:
+- Tests load dist/renderer/index.html with view query params
+- preload bridge mocked via page.addInitScript() as window.api test double
+- external API calls mocked via page.route('https://api.openai.com/**', ...)
+- no real Whisper/LLM API requests are made
+
+Verification:
+1) LSP diagnostics (changed files)
+- playwright.config.ts: clean
+- app-launch.test.ts: clean
+- settings.test.ts: clean
+- history.test.ts: clean
+- overlay.test.ts: clean
+- recording-flow.test.ts: clean
+
+2) E2E test run
+Command:
+- cd /Users/roman/work/roman/whisper-app/electron-app
+- npm run test:e2e
+
+Result:
+- 28 passed (2.5s)
+- Exit code: 0
+
+Acceptance checklist:
+- [x] 5 E2E test files created in electron-app/tests/e2e/
+- [x] Uses @playwright/test
+- [x] No _electron.launch(), renderer-only testing
+- [x] External APIs mocked with page.route()
+- [x] npm run test:e2e exits 0
+- [x] Evidence captured in .sisyphus/evidence/task-27-e2e.txt

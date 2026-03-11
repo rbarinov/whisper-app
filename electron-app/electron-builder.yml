@@ -1,0 +1,44 @@
+appId: com.whisperapp.WhisperApp
+productName: WhisperApp
+directories:
+  buildResources: assets
+  output: release
+files:
+  - dist/
+  - assets/
+  - node_modules/
+  - "!node_modules/uiohook-napi/**"
+  - "!node_modules/iohook-macos/**"
+  - package.json
+npmRebuild: false
+extraResources:
+  - from: native/keytap/build/Release/keytap.node
+    to: native/keytap.node
+    filter:
+      - "**/*"
+  - from: native/hotkey-helper
+    to: native/hotkey-helper
+    filter:
+      - "**/*"
+mac:
+  target:
+    - target: dir
+      arch:
+        - arm64
+  category: public.app-category.utilities
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+win:
+  target:
+    - nsis
+    - portable
+linux:
+  target:
+    - target: AppImage
+    - target: deb
+    - target: rpm
+  category: Utility
+  artifactName: '${productName}-${version}-${arch}.${ext}'
+deb:
+  depends:
+    - libappindicator1

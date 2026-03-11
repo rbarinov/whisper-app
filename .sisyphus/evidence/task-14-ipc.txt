@@ -1,0 +1,48 @@
+Task 14 Evidence — App State Manager + IPC Bridge
+Date: 2026-03-11
+
+Implemented files:
+- electron-app/src/main/app-state.ts
+- electron-app/src/main/ipc-handlers.ts
+- electron-app/src/main/preload.ts
+- electron-app/src/main/main.ts
+- electron-app/tests/unit/app-state.test.ts
+
+Verification:
+
+1) Build main process
+Command:
+  npm run build:main
+Working directory:
+  /Users/roman/work/roman/whisper-app/electron-app
+Result:
+  PASS (exit 0)
+Observed output:
+  > whisperapp@1.0.0 build:main
+  > tsc -p tsconfig.main.json
+
+2) Unit tests
+Command:
+  npm test
+Working directory:
+  /Users/roman/work/roman/whisper-app/electron-app
+Result:
+  PASS (exit 0)
+Observed summary:
+  Test Files  10 passed (10)
+  Tests       113 passed (113)
+
+3) LSP diagnostics on changed files
+Checked files:
+- src/main/app-state.ts
+- src/main/ipc-handlers.ts
+- src/main/preload.ts
+- src/main/main.ts
+- tests/unit/app-state.test.ts
+Result:
+  PASS (no diagnostics found on all checked files)
+
+Notes:
+- Recording lifecycle methods are intentionally stubbed for T14 and log:
+  "TODO: implement recording flow in T21"
+- IPC coverage includes all shared channels, including STOP_HOTKEY_CAPTURE and GET_AUDIO_PATH.

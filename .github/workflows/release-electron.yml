@@ -1,0 +1,184 @@
+name: Release Electron App
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-macos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enforce 500 LOC per-file limit
+        run: |
+          failed=0
+          while IFS= read -r f; do
+            lines=$(wc -l < "$f")
+            if [ "$lines" -gt 500 ]; then
+              echo "ERROR: $f has $lines lines (max 500)"
+              failed=1
+            fi
+          done < <(find electron-app/src -name '*.ts' -o -name '*.tsx')
+          if [ "$failed" -eq 1 ]; then exit 1; fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - run: npm ci
+        working-directory: electron-app
+
+      - run: npm run build:main
+        working-directory: electron-app
+
+      - run: npm run build
+        working-directory: electron-app
+
+      - run: npm test
+        working-directory: electron-app
+
+      - run: npm run make
+        working-directory: electron-app
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: electron-macos
+          path: electron-app/dist/*.{dmg,zip,exe,AppImage,deb,rpm,blockmap,yml,yaml}
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enforce 500 LOC per-file limit
+        shell: bash
+        run: |
+          failed=0
+          while IFS= read -r f; do
+            lines=$(wc -l < "$f")
+            if [ "$lines" -gt 500 ]; then
+              echo "ERROR: $f has $lines lines (max 500)"
+              failed=1
+            fi
+          done < <(find electron-app/src -name '*.ts' -o -name '*.tsx')
+          if [ "$failed" -eq 1 ]; then exit 1; fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - run: npm ci
+        working-directory: electron-app
+
+      - run: npm run build:main
+        working-directory: electron-app
+
+      - run: npm run build
+        working-directory: electron-app
+
+      - run: npm test
+        working-directory: electron-app
+
+      - run: npm run make
+        working-directory: electron-app
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: electron-windows
+          path: electron-app/dist/*.{exe,blockmap,yml,yaml}
+
+  build-linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enforce 500 LOC per-file limit
+        run: |
+          failed=0
+          while IFS= read -r f; do
+            lines=$(wc -l < "$f")
+            if [ "$lines" -gt 500 ]; then
+              echo "ERROR: $f has $lines lines (max 500)"
+              failed=1
+            fi
+          done < <(find electron-app/src -name '*.ts' -o -name '*.tsx')
+          if [ "$failed" -eq 1 ]; then exit 1; fi
+
+      - name: Install Linux build dependencies
+        run: sudo apt-get update && sudo apt-get install -y libfuse-dev rpm
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - run: npm ci
+        working-directory: electron-app
+
+      - run: npm run build:main
+        working-directory: electron-app
+
+      - run: npm run build
+        working-directory: electron-app
+
+      - run: npm test
+        working-directory: electron-app
+
+      - run: npm run make
+        working-directory: electron-app
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: electron-linux
+          path: electron-app/dist/*.{AppImage,deb,rpm,blockmap,yml,yaml}
+
+  publish:
+    needs: [build-macos, build-windows, build-linux]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: electron-macos
+          path: artifacts/macos
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: electron-windows
+          path: artifacts/windows
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: electron-linux
+          path: artifacts/linux
+
+      - name: List artifacts
+        run: find artifacts -type f | head -50
+
+      - name: Create GitHub Release
+        run: |
+          gh release create ${{ github.ref_name }} \
+            --title "WhisperApp ${{ github.ref_name }}" \
+            --notes "## Install WhisperApp ${{ github.ref_name }}
+
+          ### macOS
+          Download and open the .dmg file. Drag to Applications. Run: xattr -cr /Applications/WhisperApp.app
+
+          ### Windows
+          Download and run the .exe installer. Click 'More info' → 'Run anyway' if SmartScreen appears.
+
+          ### Linux
+          **AppImage**: chmod +x WhisperApp-*.AppImage && ./WhisperApp-*.AppImage
+          **deb**: sudo dpkg -i whisperapp_*.deb
+          **rpm**: sudo rpm -i whisperapp-*.rpm" \
+            $(find artifacts -type f | tr '\n' ' ')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

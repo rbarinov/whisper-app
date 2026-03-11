@@ -1,0 +1,48 @@
+
+> whisperapp@1.0.0 test
+> vitest run
+
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90m/Users/roman/work/roman/whisper-app/electron-app[39m
+
+[90mstderr[2m | tests/unit/history-service.test.ts[2m > [22m[2mhistory-service[2m > [22m[2mloadHistory[2m > [22m[2mreturns empty array on JSON parse error
+[22m[39mFailed to load history: SyntaxError: Unexpected token 'i', "invalid json {]" is not valid JSON
+    at JSON.parse (<anonymous>)
+    at Module.loadHistory [90m(/Users/roman/work/roman/whisper-app/electron-app/[39msrc/main/services/history-service.ts:48:46[90m)[39m
+    at [90m/Users/roman/work/roman/whisper-app/electron-app/[39mtests/unit/history-service.test.ts:118:22
+    at [90mfile:///Users/roman/work/roman/whisper-app/electron-app/[39mnode_modules/[4m@vitest/runner[24m/dist/index.js:145:11
+    at [90mfile:///Users/roman/work/roman/whisper-app/electron-app/[39mnode_modules/[4m@vitest/runner[24m/dist/index.js:915:26
+    at [90mfile:///Users/roman/work/roman/whisper-app/electron-app/[39mnode_modules/[4m@vitest/runner[24m/dist/index.js:1243:20
+    at new Promise (<anonymous>)
+    at runWithTimeout [90m(file:///Users/roman/work/roman/whisper-app/electron-app/[39mnode_modules/[4m@vitest/runner[24m/dist/index.js:1209:10[90m)[39m
+    at [90mfile:///Users/roman/work/roman/whisper-app/electron-app/[39mnode_modules/[4m@vitest/runner[24m/dist/index.js:1653:37
+    at Traces.$ [90m(file:///Users/roman/work/roman/whisper-app/electron-app/[39mnode_modules/[4mvitest[24m/dist/chunks/traces.CCmnQaNT.js:142:27[90m)[39m
+
+ [32m✓[39m tests/unit/audio-recorder.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m tests/unit/hotkey-manager.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m tests/unit/settings-service.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32m✓[39m tests/unit/transcription-service.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 20[2mms[22m[39m
+ [32m✓[39m tests/unit/llm-service.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+[90mstderr[2m | tests/unit/history-service.test.ts[2m > [22m[2mhistory-service[2m > [22m[2mupdateEntry[2m > [22m[2mthrows error if entry not found
+[22m[39mFailed to update entry: Error: Entry not found: nonexistent
+    at Module.updateEntry [90m(/Users/roman/work/roman/whisper-app/electron-app/[39msrc/main/services/history-service.ts:157:13[90m)[39m
+    at [90m/Users/roman/work/roman/whisper-app/electron-app/[39mtests/unit/history-service.test.ts:255:20
+    at Proxy.assertThrows [90m(file:///Users/roman/work/roman/whisper-app/electron-app/[39mnode_modules/[4mchai[24m/index.js:2798:5[90m)[39m
+    at Proxy.methodWrapper [90m(file:///Users/roman/work/roman/whisper-app/electron-app/[39mnode_modules/[4mchai[24m/index.js:1700:25[90m)[39m
+    at Proxy.<anonymous> [90m(file:///Users/roman/work/roman/whisper-app/electron-app/[39mnode_modules/[4m@vitest/expect[24m/dist/index.js:1149:12[90m)[39m
+    at Proxy.overwritingMethodWrapper [90m(file:///Users/roman/work/roman/whisper-app/electron-app/[39mnode_modules/[4mchai[24m/index.js:1750:33[90m)[39m
+    at Proxy.<anonymous> [90m(file:///Users/roman/work/roman/whisper-app/electron-app/[39mnode_modules/[4m@vitest/expect[24m/dist/index.js:1485:16[90m)[39m
+    at Proxy.<anonymous> [90m(file:///Users/roman/work/roman/whisper-app/electron-app/[39mnode_modules/[4m@vitest/expect[24m/dist/index.js:1090:14[90m)[39m
+    at Proxy.methodWrapper [90m(file:///Users/roman/work/roman/whisper-app/electron-app/[39mnode_modules/[4mchai[24m/index.js:1700:25[90m)[39m
+    at [90m/Users/roman/work/roman/whisper-app/electron-app/[39mtests/unit/history-service.test.ts:255:66
+
+ [32m✓[39m tests/unit/history-service.test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 68[2mms[22m[39m
+ [32m✓[39m tests/unit/paste-service.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 115[2mms[22m[39m
+ [32m✓[39m tests/unit/example.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+ [32m✓[39m tests/unit/audio-player-service.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m9 passed[39m[22m[90m (9)[39m
+[2m      Tests [22m [1m[32m111 passed[39m[22m[90m (111)[39m
+[2m   Start at [22m 03:06:36
+[2m   Duration [22m 421ms[2m (transform 399ms, setup 0ms, import 634ms, tests 252ms, environment 1ms)[22m
+

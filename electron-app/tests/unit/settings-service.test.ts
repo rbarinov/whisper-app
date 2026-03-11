@@ -1,0 +1,290 @@
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
+import type { AppSettings } from '../../src/shared/types';
+import { DEFAULT_SETTINGS } from '../../src/shared/constants';
+
+// Mock electron module before importing settings-service
+vi.mock('electron', () => ({
+  app: {
+    getPath: vi.fn(() => tempDir),
+  },
+}));
+
+// Now import the service after mocking electron
+import { loadSettings, saveSettings, getSettingsPath } from '../../src/main/services/settings-service';
+import { app } from 'electron';
+
+let tempDir: string;
+
+describe('Settings Service', () => {
+  beforeEach(() => {
+    // Create a temporary directory for each test
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-settings-'));
+    vi.mocked(app.getPath).mockReturnValue(tempDir);
+  });
+
+  afterEach(() => {
+    // Clean up temporary directory after each test
+    if (fs.existsSync(tempDir)) {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  describe('getSettingsPath', () => {
+    it('should return the settings.json path in userData directory', () => {
+      const settingsPath = getSettingsPath();
+      expect(settingsPath).toBe(path.join(tempDir, 'settings.json'));
+    });
+
+    it('should include settings.json filename', () => {
+      const settingsPath = getSettingsPath();
+      expect(settingsPath).toContain('settings.json');
+    });
+  });
+
+  describe('loadSettings', () => {
+    it('should return DEFAULT_SETTINGS when file does not exist', () => {
+      const settings = loadSettings();
+      expect(settings).toEqual(DEFAULT_SETTINGS);
+    });
+
+    it('should load settings from file when it exists', () => {
+      const testSettings: AppSettings = {
+        apiBaseURL: 'https://custom.api.com',
+        apiKey: 'sk-test-key-123',
+        modelName: 'whisper-v2',
+        language: 'ru',
+        hotkeyConfig: {
+          keyCode: 49,
+          keyName: 'F7',
+        },
+        llmPostProcessingEnabled: true,
+        llmModelName: 'gpt-4',
+        llmSystemPrompt: 'Custom prompt',
+      };
+
+      // Write test settings to file
+      const settingsPath = getSettingsPath();
+      fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
+      fs.writeFileSync(settingsPath, JSON.stringify(testSettings, null, 2));
+
+      // Load and verify
+      const loaded = loadSettings();
+      expect(loaded).toEqual(testSettings);
+    });
+
+    it('should handle partial data by filling missing fields from defaults', () => {
+      // Write only some fields to file
+      const partialSettings = {
+        apiKey: 'sk-custom-key',
+        modelName: 'custom-model',
+      };
+
+      const settingsPath = getSettingsPath();
+      fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
+      fs.writeFileSync(settingsPath, JSON.stringify(partialSettings));
+
+      // Load and verify defaults are filled in
+      const loaded = loadSettings();
+      expect(loaded.apiKey).toBe('sk-custom-key');
+      expect(loaded.modelName).toBe('custom-model');
+      expect(loaded.apiBaseURL).toBe(DEFAULT_SETTINGS.apiBaseURL);
+      expect(loaded.language).toBe(DEFAULT_SETTINGS.language);
+      expect(loaded.hotkeyConfig).toEqual(DEFAULT_SETTINGS.hotkeyConfig);
+      expect(loaded.llmPostProcessingEnabled).toBe(DEFAULT_SETTINGS.llmPostProcessingEnabled);
+      expect(loaded.llmModelName).toBe(DEFAULT_SETTINGS.llmModelName);
+      expect(loaded.llmSystemPrompt).toBe(DEFAULT_SETTINGS.llmSystemPrompt);
+    });
+
+    it('should return defaults on invalid JSON', () => {
+      // Write invalid JSON to file
+      const settingsPath = getSettingsPath();
+      fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
+      fs.writeFileSync(settingsPath, 'invalid json {]');
+
+      // Load should return defaults instead of throwing
+      const loaded = loadSettings();
+      expect(loaded).toEqual(DEFAULT_SETTINGS);
+    });
+
+    it('should handle nested hotkeyConfig with missing fields', () => {
+      const partialSettings = {
+        hotkeyConfig: {
+          keyCode: 42,
+          // keyName missing
+        },
+      };
+
+      const settingsPath = getSettingsPath();
+      fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
+      fs.writeFileSync(settingsPath, JSON.stringify(partialSettings));
+
+      const loaded = loadSettings();
+      expect(loaded.hotkeyConfig.keyCode).toBe(42);
+      expect(loaded.hotkeyConfig.keyName).toBe(DEFAULT_SETTINGS.hotkeyConfig.keyName);
+    });
+  });
+
+  describe('saveSettings', () => {
+    it('should create file if it does not exist', () => {
+      const testSettings: AppSettings = {
+        ...DEFAULT_SETTINGS,
+        apiKey: 'sk-new-key',
+      };
+
+      saveSettings(testSettings);
+
+      const settingsPath = getSettingsPath();
+      expect(fs.existsSync(settingsPath)).toBe(true);
+    });
+
+    it('should write valid JSON to file', () => {
+      const testSettings: AppSettings = {
+        ...DEFAULT_SETTINGS,
+        apiKey: 'sk-test',
+        modelName: 'test-model',
+      };
+
+      saveSettings(testSettings);
+
+      const settingsPath = getSettingsPath();
+      const fileContent = fs.readFileSync(settingsPath, 'utf-8');
+      const parsed = JSON.parse(fileContent);
+
+      expect(parsed.apiKey).toBe('sk-test');
+      expect(parsed.modelName).toBe('test-model');
+    });
+
+    it('should preserve all fields in roundtrip (save then load)', () => {
+      const testSettings: AppSettings = {
+        apiBaseURL: 'https://test.api.com',
+        apiKey: 'sk-roundtrip-test',
+        modelName: 'whisper-test',
+        language: 'en',
+        hotkeyConfig: {
+          keyCode: 100,
+          keyName: 'F10',
+        },
+        llmPostProcessingEnabled: true,
+        llmModelName: 'gpt-test',
+        llmSystemPrompt: 'Test prompt',
+      };
+
+      // Save
+      saveSettings(testSettings);
+
+      // Load
+      const loaded = loadSettings();
+
+      // Verify all fields
+      expect(loaded).toEqual(testSettings);
+    });
+
+    it('should overwrite existing file', () => {
+      const firstSettings: AppSettings = {
+        ...DEFAULT_SETTINGS,
+        apiKey: 'sk-first',
+      };
+
+      const secondSettings: AppSettings = {
+        ...DEFAULT_SETTINGS,
+        apiKey: 'sk-second',
+      };
+
+      // Save first, then second
+      saveSettings(firstSettings);
+      saveSettings(secondSettings);
+
+      // Load and verify second is saved
+      const loaded = loadSettings();
+      expect(loaded.apiKey).toBe('sk-second');
+    });
+
+    it('should format JSON with pretty-printing', () => {
+      const testSettings: AppSettings = {
+        ...DEFAULT_SETTINGS,
+        apiKey: 'sk-format-test',
+      };
+
+      saveSettings(testSettings);
+
+      const settingsPath = getSettingsPath();
+      const fileContent = fs.readFileSync(settingsPath, 'utf-8');
+
+      // Check for indentation (pretty-printing)
+      expect(fileContent).toContain('\n');
+      expect(fileContent).toMatch(/  "/); // 2-space indentation
+    });
+
+    it('should create directory structure if it does not exist', () => {
+      const testSettings: AppSettings = {
+        ...DEFAULT_SETTINGS,
+        apiKey: 'sk-mkdir-test',
+      };
+
+      // Ensure directory doesn't exist
+      const settingsPath = getSettingsPath();
+      const dirPath = path.dirname(settingsPath);
+      if (fs.existsSync(dirPath)) {
+        fs.rmSync(dirPath, { recursive: true, force: true });
+      }
+
+      // Should not throw when saving
+      expect(() => {
+        saveSettings(testSettings);
+      }).not.toThrow();
+
+      // Directory should now exist
+      expect(fs.existsSync(dirPath)).toBe(true);
+      expect(fs.existsSync(settingsPath)).toBe(true);
+    });
+
+    it('should use atomic writes (temp file pattern)', () => {
+      const testSettings: AppSettings = {
+        ...DEFAULT_SETTINGS,
+        apiKey: 'sk-atomic-test',
+      };
+
+      const settingsPath = getSettingsPath();
+      const tempPath = `${settingsPath}.tmp`;
+
+      // Save settings
+      saveSettings(testSettings);
+
+      // Verify temp file was cleaned up (not left behind)
+      expect(fs.existsSync(tempPath)).toBe(false);
+      expect(fs.existsSync(settingsPath)).toBe(true);
+    });
+  });
+
+  describe('Integration: save and load roundtrip', () => {
+    it('should successfully save and restore complex settings', () => {
+      const originalSettings: AppSettings = {
+        apiBaseURL: 'https://integration.test.com',
+        apiKey: 'sk-integration-key-12345',
+        modelName: 'whisper-integration',
+        language: 'fr',
+        hotkeyConfig: {
+          keyCode: 64, // UiohookKey.F6
+          keyName: 'F6',
+        },
+        llmPostProcessingEnabled: true,
+        llmModelName: 'gpt-4-turbo',
+        llmSystemPrompt: 'Integration test prompt with special chars: "quotes" and \\ backslashes',
+      };
+
+      // Save
+      saveSettings(originalSettings);
+
+      // Load
+      const restored = loadSettings();
+
+      // Verify complete equality
+      expect(restored).toEqual(originalSettings);
+      expect(restored.apiKey).toBe(originalSettings.apiKey);
+      expect(restored.llmSystemPrompt).toBe(originalSettings.llmSystemPrompt);
+    });
+  });
+});

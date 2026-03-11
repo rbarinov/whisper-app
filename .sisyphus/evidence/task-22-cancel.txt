@@ -1,0 +1,41 @@
+Task 22 Evidence — Cancel/Retry/Error Handling Integration
+Date: 2026-03-11
+
+Scope implemented:
+- electron-app/src/main/app-state.ts
+- electron-app/src/main/services/history-service.ts
+- electron-app/tests/unit/app-state.test.ts
+
+Acceptance checklist:
+- [x] cancelRecording() during recording uses 0.5s threshold (G17) and persists cancelled entry with audio only when duration >= 500ms
+- [x] cancelRecording() discards silently for duration < 500ms
+- [x] cancel during transcribing/processing aborts current AbortController request, marks active entry cancelled, returns to idle, shows cancelled overlay
+- [x] Escape cancel path already wired via HotkeyManager 'cancel' -> AppState.cancelRecording()
+- [x] retryTranscription(entryId) loads entry audio file and runs shared transcription lifecycle from existing buffer
+- [x] Shared helper extracted: runTranscriptionFromBuffer(buffer, entryId, entryAudioMetadata?)
+- [x] Added unit tests for:
+  - cancel during recording >=0.5s => cancelled entry created
+  - cancel during recording <0.5s => no entry created
+  - cancel during transcription => entry cancelled + request aborted
+  - retry from failed => new successful entry created
+  - retry from cancelled => new successful entry created
+
+Verification:
+1) LSP diagnostics
+- app-state.ts: clean
+- app-state.test.ts: clean
+- history-service.ts: clean
+
+2) Tests
+Command: npm test
+Result: PASS
+Summary: 10 test files passed, 123 tests passed, 0 failed
+
+3) TypeScript
+Command: npx tsc --noEmit
+Result: PASS (exit 0)
+
+Implementation notes:
+- Added history-service.getEntries() helper for retry lookup by id.
+- Added recording cancellation race handling with pendingCancelledDurationSeconds so cancel before RECORDING_DATA arrival still persists cancelled entry when >=0.5s.
+- Retry path creates a new transcription entry (transcribing -> successful/failed) using existing audio, preserving source failed/cancelled entry.

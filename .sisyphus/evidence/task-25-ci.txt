@@ -1,0 +1,65 @@
+Task 25: CI/CD Build Pipeline GitHub Actions Workflow
+=====================================================
+Date: 2026-03-11
+
+## Created File
+- .github/workflows/build-electron.yml (139 lines)
+
+## Verification
+
+### YAML Validation
+- PyYAML safe_load: PASSED
+- Basic indentation check: PASSED
+- No tab characters: PASSED
+
+### Three Separate Jobs (not matrix)
+- build-macos: runs-on macos-14 ✓
+- build-windows: runs-on windows-latest ✓
+- build-linux: runs-on ubuntu-22.04 ✓
+
+### Each Job Steps
+All three jobs include:
+1. actions/checkout@v4 ✓
+2. actions/setup-node@v4 with node-version 20 ✓
+3. npm ci (working-directory: electron-app) ✓
+4. npm run build:main (working-directory: electron-app) ✓
+5. npm run build (working-directory: electron-app) ✓
+6. npm test (working-directory: electron-app) ✓
+7. npm run make (working-directory: electron-app) ✓
+
+### 500 LOC Check
+- All 3 jobs enforce 500 LOC per-file limit on electron-app/src/**/*.ts and *.tsx ✓
+- Pattern mirrors existing build.yml (find + wc -l + threshold check) ✓
+- Windows job uses shell: bash for compatibility ✓
+
+### Linux-specific Dependencies
+- sudo apt-get update && sudo apt-get install -y libfuse-dev rpm ✓
+- Placed before npm ci ✓
+
+### Artifact Upload
+- All 3 jobs use actions/upload-artifact@v4 ✓
+- macOS: WhisperApp-macOS from electron-app/dist/** ✓
+- Windows: WhisperApp-Windows from electron-app/dist/** ✓
+- Linux: WhisperApp-Linux from electron-app/dist/** ✓
+
+### macOS Architecture
+- electron-builder.yml defines mac targets with both x64 and arm64 ✓
+- electron-builder handles multi-arch when running on macOS ✓
+
+### No Code Signing (G2 compliance)
+- grep for APPLE_CERTIFICATE, APPLE_SIGNING, CSC_LINK, SIGNING, codesign: 0 matches ✓
+- No signing env vars or steps present ✓
+
+### Triggers
+- push to main ✓
+- pull_request to main ✓
+
+### No Modifications to Existing Files
+- build.yml: untouched ✓
+- release.yml: untouched ✓
+- No electron-app source files modified ✓
+
+## Notes
+- npm run make = electron-builder --dir (produces platform-specific output in dist/)
+- electron-builder.yml defines targets: macOS (dmg+zip for x64/arm64), Windows (nsis+portable), Linux (AppImage+deb+rpm)
+- Actual installer generation (vs --dir) may need electron-builder without --dir flag; current setup follows task spec exactly

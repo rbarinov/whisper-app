@@ -1,0 +1,22 @@
+Tasks [2/8 compliant]
+Guardrails [5/5 clean]
+Unaccounted files [CLEAN]
+
+Details:
+- T21: NON-COMPLIANT [Core transcribe→LLM→paste lifecycle exists in `runRecordingLifecycle()`/`runTranscriptionFromBuffer()`, including G18 fallback, but step 1 mic-permission flow from spec is missing (`isMicrophoneGranted` is never updated and no `getUserMedia` IPC permission handshake exists in main flow).]
+- T22: COMPLIANT [G17 threshold logic implemented in `cancelRecording()` (>=0.5s persists cancelled entry with audio; <0.5s no entry), in-flight transcription/processing cancel aborts via `AbortController`, and `retryTranscription()` reloads audio file from `recordings/` and re-runs lifecycle.]
+- T23: NON-COMPLIANT [macOS pieces are partial: `app.name`, template tray image, and dual-arch mac targets are present, but dock show/hide tracking is not wired to any actual Settings/History window lifecycle (`trackWindowForDock` has no call sites outside `main.ts`), so required behavior is not implemented end-to-end.]
+- T24: NON-COMPLIANT [Wayland clipboard-only fallback and Linux packaging targets are implemented, but GNOME requirement is only partially met: code warns on GNOME unconditionally and does not detect “GNOME + no AppIndicator extension” as specified.]
+- T25: NON-COMPLIANT [Workflow has 3 platform jobs and LOC check, but packaging/artifact intent is not met: jobs run `npm run make` where script is `electron-builder --dir` (unpacked app), so DMG/NSIS/AppImage+deb+rpm deliverables are not produced as specified; macOS job also does not explicitly build both x64+arm64 artifacts.]
+- T26: NON-COMPLIANT [Tag trigger, 3 build jobs, and publish job with `gh release create` exist, but build jobs do not use `--publish never` as specified and currently rely on `make` (`--dir`) outputs rather than full packaged release artifacts.] 
+- T27: NON-COMPLIANT [There are 5+ E2E files and `npm run test:e2e` passes (28 passed), but implementation is renderer-only file-based tests; spec-required Playwright Electron flow (`_electron.launch`) and full mocked app runtime flow are not implemented 1:1.]
+- T28: COMPLIANT [`README.md` starts with cross-platform Electron install/build guidance, and legacy Swift section is preserved below as “Legacy macOS-only Version”.]
+
+Guardrails:
+- G1 (no auto-update): CLEAN
+- G2 (no signing): CLEAN
+- G14 (reasoning_effort:low): CLEAN
+- G17 (cancel 500ms): CLEAN
+- G18 (LLM fallback): CLEAN
+
+VERDICT: REJECT

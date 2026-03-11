@@ -1,0 +1,78 @@
+TASK 12: History Persistence Service - COMPLETED
+
+=== DELIVERABLES ===
+
+1. Created: electron-app/src/main/services/history-service.ts
+   - Exports: loadHistory, saveHistory, addEntry, updateEntry, deleteEntry, clearAllHistory, getRecordingsDir
+   - Implements all required behaviors
+
+2. Created: electron-app/tests/unit/history-service.test.ts
+   - 23 comprehensive tests covering all functions
+   - All tests passing
+
+3. Tests Results:
+   ✓ tests/unit/example.test.ts (3 tests)
+   ✓ tests/unit/settings-service.test.ts (15 tests)
+   ✓ tests/unit/history-service.test.ts (23 tests)
+   
+   Test Files: 3 passed
+   Tests: 41 passed
+   
+4. Build Status:
+   ✓ npm run build:main - Passes with no errors
+   ✓ TypeScript compilation - Success
+
+=== IMPLEMENTATION DETAILS ===
+
+History Service Features:
+✓ Storage paths via app.getPath('userData') - called at runtime, not module load
+✓ History file: {userData}/history.json
+✓ Audio files: {userData}/recordings/{filename}
+✓ Max 100 entries enforcement (HISTORY_MAX_ENTRIES)
+✓ Backward-compatible decoding: missing `status` defaults to 'successful'
+✓ Crash recovery: marks `transcribing` entries as `failed` with error message
+✓ Entry deletion: removes from array AND deletes audio file if exists
+✓ Clear all: deletes all entries AND all audio files in recordings/
+✓ Atomic writes: temp file → rename pattern (same as settings-service)
+✓ UUID generation for new entries (crypto.randomUUID)
+✓ Path traversal prevention on audio file deletion
+
+Test Coverage:
+✓ loadHistory() on empty file → returns []
+✓ addEntry() → adds to array, file saved, enforces 100 entry limit
+✓ Max 100 entries trim → oldest removed, audio files deleted
+✓ Crash recovery → transcribing entries become failed with message
+✓ Backward-compatible load → missing status defaults to successful
+✓ deleteEntry() → removes entry, deletes audio file
+✓ clearAllHistory() → empty array, all audio files deleted
+✓ updateEntry() → updates specific entry by id, preserves id/timestamp
+✓ getRecordingsDir() → returns correct path
+✓ Atomic write verification → temp file cleaned up
+
+=== BUILD VERIFICATION ===
+
+$ npm test
+✓ All tests pass (41/41)
+
+$ npm run build:main
+✓ TypeScript compiles without errors
+
+=== TECH NOTES ===
+
+- Service follows the same pattern as settings-service.ts
+- Mock pattern for tests matches existing vitest setup
+- Audio file cleanup is safe (checks existence before deleting)
+- Error handling graceful (returns empty array on load failures)
+- Trim logic correctly removes oldest entries when limit exceeded
+
+=== COMMIT MESSAGE ===
+
+feat(electron): add history persistence service
+
+Create history persistence service for Electron main process with:
+- Read/write history.json in userData directory
+- Max 100 entries with automatic trimming
+- Audio file management and cleanup
+- Crash recovery (marks interrupted entries as failed)
+- Backward-compatible decoding (missing status defaults to 'successful')
+- Atomic file writes with temp file pattern

@@ -1,0 +1,52 @@
+Task 9: LLM Post-Processing Service — Evidence
+================================================
+
+Date: 2026-03-11
+
+Files Created:
+- electron-app/src/main/services/retry.ts (shared retry utility)
+- electron-app/src/main/services/llm-service.ts (LLM post-processing)
+- electron-app/tests/unit/llm-service.test.ts (15 tests)
+
+Key Implementation Details:
+- retry.ts: retryWithBackoff<T> generic function with configurable shouldRetry predicate
+  - Default: retry on network errors, 5xx, 408, 429; no retry on other 4xx
+  - Extracts statusCode from error objects automatically
+- llm-service.ts: processWithLLM() ported from Swift LLMService
+  - POST to {baseURL}/v1/chat/completions
+  - reasoning_effort: 'low' (G14 guardrail — ALWAYS present)
+  - User message wrapped in <transcription> tags
+  - System prompt included only when non-empty (after trim)
+  - Uses Node.js built-in http/https (no external deps)
+  - 30s timeout (LLM_TIMEOUT_MS)
+  - Retry via retryWithBackoff()
+  - HttpClient DI pattern for testability (same as transcription-service)
+
+Transcription Service Refactoring:
+- NOT refactored — transcription-service has its own inline retry logic with
+  TranscriptionError-specific handling. Refactoring is optional per task spec and
+  carries risk of breaking existing tests. retry.ts is available for future adoption.
+
+Test Results:
+ ✓ tests/unit/llm-service.test.ts (15 tests) 12ms
+ Test Files  5 passed (5)
+       Tests  68 passed (68)
+
+All 15 LLM tests pass:
+1. Returns processed text on 200 response ✓
+2. Request body contains reasoning_effort: 'low' (G14) ✓
+3. User message wraps text in <transcription> tags ✓
+4. System prompt included when non-empty ✓
+5. System prompt omitted when empty ✓
+5b. System prompt omitted when whitespace-only ✓
+6. Retries on 500 ✓
+7. Does NOT retry on 401 ✓
+8. Throws on empty API key ✓
+9. Sends correct model name ✓
+10. Trims response content ✓
+11. Throws after exhausting retries on persistent 500 ✓
+12. Retries on 429 rate limit ✓
+13. Does NOT retry on 400 ✓
+14. Throws on invalid API base URL ✓
+
+LSP Diagnostics: Clean (0 errors) on all 3 new files.

@@ -1,0 +1,97 @@
+import { test, expect } from '@playwright/test';
+
+test.describe('renderer app launch', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.route('https://api.openai.com/**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ mocked: true }),
+      });
+    });
+
+    await page.addInitScript(() => {
+      const listeners: Array<(state: unknown) => void> = [];
+      const initialState = { recordingState: { type: 'idle' }, history: [] };
+
+      const api = {
+        startRecording: async () => undefined,
+        stopRecording: async () => undefined,
+        cancelRecording: async () => undefined,
+        sendRecordingData: () => undefined,
+        getSettings: async () => ({
+          apiBaseURL: 'https://api.openai.com',
+          apiKey: '',
+          modelName: 'whisper-1',
+          language: '',
+          hotkeyConfig: { keyCode: 63, keyName: 'F5' },
+          llmPostProcessingEnabled: false,
+          llmModelName: 'gpt-oss-20b',
+          llmSystemPrompt: 'prompt',
+        }),
+        saveSettings: async () => undefined,
+        getHistory: async () => [],
+        deleteEntry: async () => undefined,
+        clearHistory: async () => undefined,
+        retryTranscription: async () => undefined,
+        copyToClipboard: async () => undefined,
+        playAudio: async () => undefined,
+        stopAudio: async () => undefined,
+        getAudioPath: async () => '',
+        showSettings: async () => undefined,
+        showHistory: async () => undefined,
+        quit: async () => undefined,
+        startHotkeyCapture: async () => undefined,
+        stopHotkeyCapture: async () => undefined,
+        onStateUpdate: (callback: (state: unknown) => void) => {
+          listeners.push(callback);
+          callback(initialState);
+          return () => {
+            const idx = listeners.indexOf(callback);
+            if (idx >= 0) listeners.splice(idx, 1);
+          };
+        },
+        onOverlayUpdate: (callback: (state: unknown) => void) => {
+          callback({ type: 'hidden' });
+          return () => undefined;
+        },
+        onHotkeyCaptured: () => () => undefined,
+        onWaylandNotify: () => () => undefined,
+        getAppState: async () => ({ recordingState: 'idle', history: [], isMicrophoneGranted: true }),
+      };
+
+      Object.assign(window as Window & { api?: unknown }, { api });
+    });
+  });
+
+  test('loads page title without fatal errors', async ({ page }) => {
+    const pageErrors: string[] = [];
+    page.on('pageerror', (error) => pageErrors.push(error.message));
+
+    await page.goto('index.html?view=settings');
+
+    await expect(page).toHaveTitle('WhisperApp');
+    expect(pageErrors).toEqual([]);
+  });
+
+  test('renders root app container', async ({ page }) => {
+    await page.goto('index.html?view=settings');
+    await expect(page.locator('#root')).toBeVisible();
+  });
+
+  test('renders settings view by default', async ({ page }) => {
+    await page.goto('index.html');
+    await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
+  });
+
+  test('switches to history view via query param', async ({ page }) => {
+    await page.goto('index.html?view=history');
+    await expect(page.getByRole('heading', { name: 'History' })).toBeVisible();
+  });
+
+  test('switches to overlay view via query param', async ({ page }) => {
+    await page.goto('index.html?view=overlay');
+    await expect(page).toHaveURL(/view=overlay/);
+    await expect(page.locator('#root')).toBeAttached();
+  });
+});

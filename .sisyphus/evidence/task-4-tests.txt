@@ -1,0 +1,114 @@
+TASK 4: Vitest + Playwright Test Infrastructure Setup
+=========================================================
+
+Date: 2026-03-11
+
+ENVIRONMENT
+-----------
+Working directory: /Users/roman/work/roman/whisper-app/electron-app
+Node.js version: v20.11.1
+NPM version: 10.2.4
+
+INSTALLATION
+-----------
+✓ Installed: vitest@4.0.18
+✓ Installed: @vitest/coverage-v8@4.0.18
+✓ Installed: @playwright/test@1.58.2
+
+CONFIGURATION FILES CREATED
+---------------------------
+✓ vitest.config.ts - TypeScript support, test pattern: tests/unit/**/*.test.ts, environment: node
+✓ playwright.config.ts - E2E infrastructure, test pattern: tests/e2e/**/*.test.ts, screenshot on failure, 30s timeout per test
+
+TEST FILES CREATED
+------------------
+✓ tests/unit/example.test.ts
+  - Imports from src/shared/constants.ts
+  - Tests DEFAULT_LLM_MODEL_NAME === 'gpt-oss-20b'
+  - Tests DEFAULT_MODEL_NAME === 'whisper-1'
+  - Basic arithmetic test
+  - 3 tests total
+
+✓ tests/e2e/example.test.ts
+  - Infrastructure verification tests (no Electron launch yet)
+  - Test: verify test runner works
+  - Test: basic assertion
+  - Test: string matching
+  - 3 tests total
+
+PACKAGE.JSON SCRIPTS ADDED
+--------------------------
+"test": "vitest run"
+"test:e2e": "playwright test"
+"test:coverage": "vitest run --coverage"
+
+UNIT TEST RESULTS
+-----------------
+Command: npm test
+Exit code: 0
+Test Files: 1 passed
+Tests: 3 passed
+Duration: 151ms
+
+Output:
+> whisperapp@1.0.0 test
+> vitest run
+
+ ✓ tests/unit/example.test.ts (3 tests) 1ms
+
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+   Start at  02:01:36
+   Duration  151ms (transform 20ms, setup 0ms, import 27ms, tests 1ms, environment 0ms)
+
+E2E TEST RESULTS
+----------------
+Command: npm run test:e2e
+Exit code: 0
+Test suites: 3 browsers (chromium, firefox, webkit)
+Total tests: 9 passed
+
+Output:
+> whisperapp@1.0.0 test:e2e
+> playwright test
+
+Running 9 tests using 4 workers
+
+✓ [chromium] › tests/e2e/example.test.ts:16:7 › E2E Test Infrastructure › should verify string matching
+✓ [chromium] › tests/e2e/example.test.ts:4:7 › E2E Test Infrastructure › should verify the test runner works
+✓ [firefox] › tests/e2e/example.test.ts:4:7 › E2E Test Infrastructure › should verify the test runner works
+✓ [chromium] › tests/e2e/example.test.ts:10:7 › E2E Test Infrastructure › should perform basic assertion
+✓ [webkit] › tests/e2e/example.test.ts:10:7 › E2E Test Infrastructure › should perform basic assertion
+✓ [webkit] › tests/e2e/example.test.ts:4:7 › E2E Test Infrastructure › should verify the test runner works
+✓ [firefox] › tests/e2e/example.test.ts:10:7 › E2E Test Infrastructure › should perform basic assertion
+✓ [firefox] › tests/e2e/example.test.ts:16:7 › E2E Test Infrastructure › should verify string matching
+✓ [webkit] › tests/e2e/example.test.ts:16:7 › E2E Test Infrastructure › should verify string matching
+
+9 passed (1.5s)
+
+VERIFICATION CHECKLIST
+----------------------
+✓ vitest.config.ts created with TypeScript support
+✓ playwright.config.ts created for E2E testing
+✓ tests/unit/example.test.ts created and imports shared constants
+✓ tests/e2e/example.test.ts created with infrastructure tests
+✓ package.json scripts updated (test, test:e2e, test:coverage)
+✓ npm test passes (exit 0, 3 tests passed)
+✓ npm run test:e2e passes (exit 0, 9 tests passed across 3 browsers)
+✓ Evidence file created
+
+ACCEPTANCE CRITERIA MET
+-----------------------
+✓ npm test exits 0, 1+ test passed (3 tests passed)
+✓ npm run test:e2e exits 0, 1+ test passed (9 tests passed)
+✓ Both config files created and valid
+✓ Path aliases configured (if applicable in vitest.config.ts)
+✓ TypeScript support enabled in vitest.config.ts
+
+NOTES
+-----
+- Playwright E2E tests run on all 3 major browsers by default (chromium, firefox, webkit)
+- Actual Electron app launching will be done in Task 27
+- Current E2E tests verify infrastructure only
+- Coverage reporting available via: npm run test:coverage
+- Vitest configured with proper environment settings and test patterns

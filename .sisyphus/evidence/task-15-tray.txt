@@ -1,0 +1,46 @@
+Task 15: System Tray + Tray Menu — Evidence
+=============================================
+
+## Files Created
+
+1. electron-app/src/main/tray.ts (152 lines)
+   - TrayManager class with initialize(), updateState(), destroy()
+   - Dynamic icon switching: idle → tray-idle.png, recording → tray-recording.png, transcribing/processing → tray-busy.png
+   - macOS template image support (nativeImage.setTemplateImage(true))
+   - Context menu: Status (disabled), Start/Stop Recording, History, Settings, Quit
+   - Menu rebuilt on state change
+
+2. electron-app/assets/icons/tray-idle.png (75 bytes, 16x16 RGBA PNG)
+3. electron-app/assets/icons/tray-recording.png (75 bytes, 16x16 RGBA PNG)
+4. electron-app/assets/icons/tray-busy.png (75 bytes, 16x16 RGBA PNG)
+
+## Build Verification
+
+$ npm run build:main
+> whisperapp@1.0.0 build:main
+> tsc -p tsconfig.main.json
+(exit code 0, no errors)
+
+## LSP Diagnostics
+No errors on src/main/tray.ts
+
+## API Surface
+
+TrayManager:
+  - initialize(onShowSettings: () => void, onShowHistory: () => void): void
+  - updateState(state: RecordingState): void
+  - destroy(): void
+
+Private:
+  - getIconPath(state: RecordingState): string
+  - loadIcon(state: RecordingState): NativeImage
+  - getStatusText(state: RecordingState): string
+  - buildContextMenu(state: RecordingState): Menu
+
+## Checklist
+[x] electron-app/src/main/tray.ts created
+[x] electron-app/assets/icons/tray-idle.png created (16x16 placeholder PNG)
+[x] electron-app/assets/icons/tray-recording.png created (16x16 placeholder PNG)
+[x] electron-app/assets/icons/tray-busy.png created (16x16 placeholder PNG)
+[x] npm run build:main exits 0
+[x] Evidence in .sisyphus/evidence/task-15-tray.txt

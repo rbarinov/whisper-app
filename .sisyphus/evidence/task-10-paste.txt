@@ -1,0 +1,33 @@
+Task 10: Paste Service — Evidence
+==================================
+Date: 2026-03-11
+
+## Files Created
+- electron-app/src/main/services/paste-service.ts (104 lines)
+- electron-app/tests/unit/paste-service.test.ts (229 lines)
+
+## Test Results
+All 86 tests pass (6 test files), including 18 new paste-service tests:
+
+✓ tests/unit/paste-service.test.ts (18 tests) 111ms
+
+Tests cover:
+- isWaylandSession() — false when no env vars, false when x11, true when XDG_SESSION_TYPE=wayland, true when WAYLAND_DISPLAY set, true when both set
+- getPasteModifier() — Meta on darwin, Control on linux, Control on win32
+- pasteText() — clipboard write, default electron clipboard, Wayland clipboard-only, null simulator fallback, Meta+V on macOS, Control+V on Windows, Control+V on Linux, error fallback, delay timing, Wayland skips simulator
+
+## Checklist
+- [x] electron-app/src/main/services/paste-service.ts created
+- [x] Unit tests at electron-app/tests/unit/paste-service.test.ts
+- [x] npm test passes (86/86)
+- [x] Wayland detection: XDG_SESSION_TYPE + WAYLAND_DISPLAY
+- [x] Platform modifier: process.platform === 'darwin' ? Meta : Control (G12)
+- [x] Clipboard write only — no save/restore (G17)
+- [x] @nut-tree/nut-js optional — graceful fallback via try/catch dynamic require
+- [x] 50ms delay between clipboard write and key simulation
+- [x] LSP diagnostics clean on both files
+
+## npm test full output
+ Test Files  6 passed (6)
+       Tests  86 passed (86)
+    Duration  353ms

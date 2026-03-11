@@ -1,0 +1,13 @@
+{
+  "name": "keytap",
+  "version": "1.0.0",
+  "private": true,
+  "description": "macOS CGEvent tap N-API addon for Electron",
+  "main": "build/Release/keytap.node",
+  "scripts": {
+    "build": "node-gyp rebuild --release"
+  },
+  "dependencies": {
+    "node-addon-api": "^7.0.0"
+  }
+}

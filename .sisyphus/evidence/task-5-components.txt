@@ -1,0 +1,37 @@
+TASK 5: Tailwind Design Tokens + Base Components — EVIDENCE
+============================================================
+
+WEBPACK BUILD:
+$ cd electron-app && npm run build
+webpack 5.105.4 compiled successfully in 2099ms
+✓ Exit code: 0
+
+TYPESCRIPT CHECK:
+$ cd electron-app && npx tsc --noEmit
+✓ Exit code: 0 (no type errors)
+
+FILES CREATED:
+✓ electron-app/tailwind.config.js — updated with 6 custom color tokens
+✓ electron-app/src/renderer/components/Button.tsx — 51 lines
+✓ electron-app/src/renderer/components/StatusBadge.tsx — 40 lines  
+✓ electron-app/src/renderer/components/IconButton.tsx — 42 lines
+
+CUSTOM COLORS ADDED:
+✓ idle: '#22c55e' (green — idle/done state)
+✓ recording: '#ef4444' (red — recording state, pulsing animation)
+✓ transcribing: '#3b82f6' (blue — transcribing state)
+✓ processing: '#8b5cf6' (violet — processing state)
+✓ error: '#f97316' (orange — error state)
+✓ cancelled: '#6b7280' (gray — cancelled state)
+
+COMPONENT VERIFICATION:
+✓ Button: variant (primary/secondary/danger), size (sm/md), disabled states
+✓ StatusBadge: all 6 status types, pulsing animation for recording
+✓ IconButton: circular hover effect matching Swift MenuBarButton style
+✓ All components use named exports (not default)
+✓ All components have TypeScript interfaces for props
+✓ No 'any' types used
+
+COMMIT: 515c65d — feat(electron): add Tailwind design tokens and base components
+
+STATUS: ✓ COMPLETE

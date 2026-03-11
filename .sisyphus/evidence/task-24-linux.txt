@@ -1,0 +1,57 @@
+Task 24: Linux-Specific Polish — Evidence
+==========================================
+Date: 2026-03-11
+
+## 1. Wayland Detection — VERIFIED ✅
+File: electron-app/src/main/services/paste-service.ts
+
+isWaylandSession() checks:
+  - process.env.XDG_SESSION_TYPE === 'wayland'
+  - !!process.env.WAYLAND_DISPLAY
+Both conditions connected with OR (||). Correct.
+
+## 2. Wayland Paste Behavior — VERIFIED ✅
+File: electron-app/src/main/services/paste-service.ts
+
+On Wayland:
+  - Writes text to clipboard via clipboardWrite(text)
+  - Returns { success: true, method: 'clipboard-only', message: 'Text copied! Press Ctrl+V to paste' }
+  - Skips keyboard simulation entirely (returns before simulator is loaded)
+
+Existing tests confirm this behavior:
+  - "returns clipboard-only result on Wayland with user-facing message" — checks method='clipboard-only', message contains 'Ctrl+V'
+  - "skips keyboard simulation on Wayland even when simulator is provided" — confirms simulator.pressKey NOT called
+
+## 3. electron-builder.yml Linux Targets — UPDATED ✅
+File: electron-app/electron-builder.yml
+
+Added:
+  linux:
+    target:
+      - target: AppImage
+      - target: deb
+      - target: rpm
+    category: Utility
+    artifactName: '${productName}-${version}-${arch}.${ext}'
+  deb:
+    depends:
+      - libappindicator1
+
+Previously only had AppImage and deb as simple strings. Now uses proper target objects,
+adds rpm, sets category, and adds deb dependency for tray icon support.
+
+## 4. GNOME Tray Warning — ADDED ✅
+File: electron-app/src/main/tray.ts (TrayManager.initialize())
+
+Added after tray creation:
+  if (process.platform === 'linux' && process.env.XDG_CURRENT_DESKTOP?.includes('GNOME')) {
+    console.warn('WhisperApp: GNOME does not show system tray icons by default. Install the AppIndicator extension for GNOME Shell.');
+  }
+
+## 5. Tests — ALL PASSING ✅
+  10 test files, 123 tests passed
+  npx tsc --noEmit — exits 0
+
+## Files Modified
+  - electron-app/electron-builder.yml (Linux targets + deb depends)
+  - electron-app/src/main/tray.ts (GNOME tray warning)

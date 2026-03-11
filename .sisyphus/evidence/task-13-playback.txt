@@ -1,0 +1,49 @@
+Task 13: Audio Playback Service
+Date: 2026-03-11
+
+## Deliverables
+✓ electron-app/src/main/services/audio-player-service.ts - CREATED
+✓ electron-app/tests/unit/audio-player-service.test.ts - CREATED
+✓ npm test - PASSED (9 tests)
+
+## Implementation Details
+
+### AudioPlayerService
+- Pure state management service for tracking which entry is playing
+- Main process only (no actual audio playback in Node.js)
+- Renderer process handles actual HTML5 <audio> playback via IPC
+- Exports: AudioPlayerState interface, AudioPlayerService class, audioPlayerService singleton
+
+### Key Methods
+1. getState() - Returns current playback state
+2. play(entryId, filePath) - Start playing an entry
+3. stop() - Stop playback
+4. toggle(entryId, filePath) - Toggle: stop if playing same, otherwise switch
+5. isPlayingEntry(entryId) - Check if specific entry is playing
+
+### Tests (9 total)
+1. Initial state: isPlaying=false, playingEntryId=null
+2. play() sets state correctly
+3. stop() clears state
+4. toggle() when idle starts playback
+5. toggle() when playing same entry stops it
+6. toggle() when playing different entry switches
+7. isPlayingEntry() returns true for playing entry
+8. isPlayingEntry() returns false for different entry
+9. isPlayingEntry() returns false when not playing
+
+## Test Results
+Test Files: 7 passed
+Tests: 95 passed (including 9 new audio-player-service tests)
+Duration: 422ms
+
+Output:
+✓ tests/unit/audio-player-service.test.ts (9 tests) 2ms
+
+All tests pass.
+
+## Architecture Notes
+- Main process: tracks state only via AudioPlayerService
+- Renderer process: handles HTML5 <audio> element for actual playback
+- IPC communication: PLAY_AUDIO, STOP_AUDIO channels defined in ipc-channels.ts
+- Separation enables unit-testable main process without requiring audio libraries

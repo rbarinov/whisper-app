@@ -1,0 +1,41 @@
+Task: 3 - Hotkey Module Spike (uiohook-napi)
+Date: 2026-03-11
+Repo: /Users/roman/work/roman/whisper-app
+
+1) Dependency installation
+- Command: npm install uiohook-napi (workdir: electron-app)
+- Result: added 3 packages
+- package.json now includes: "uiohook-napi": "^1.5.4"
+
+2) API + keycode evidence from installed package
+- File: electron-app/node_modules/uiohook-napi/dist/index.d.ts
+- Key findings:
+  - UiohookKey.F5 = 63
+  - UiohookKey.Escape = 1
+  - on('keydown', ...) and on('keyup', ...) supported as separate events
+
+3) Spike script created
+- File: electron-app/spikes/hotkey-spike.ts
+- Includes:
+  - keyDown/keyUp event logging with keycode + timestamp
+  - hold duration detection (300ms threshold)
+  - double-press detection (400ms window)
+  - auto-repeat filtering (ignore repeated keydown while key already tracked down)
+  - Escape key early exit
+  - fixed 30-second runtime auto-exit
+
+4) Runtime attempt
+- Command: node spikes/hotkey-spike.ts (workdir: electron-app)
+- Output:
+  [2026-03-10T21:53:03.422Z] Starting uiohook hotkey spike
+  [2026-03-10T21:53:03.438Z] Reference keycodes: F5=63, Escape=1, hold=300ms, doublePress=400ms
+  hook_run [1405]: Accessibility API is disabled!
+- Conclusion: interactive validation blocked until Accessibility permission is granted on macOS.
+
+5) Result documentation created
+- File: electron-app/spikes/HOTKEY_SPIKE_RESULTS.md
+- Documents version, keycodes, behavior analysis, issues, and recommendation
+
+6) Constants update
+- File: electron-app/src/shared/constants.ts
+- Value: DEFAULT_HOTKEY_KEY_CODE = 63

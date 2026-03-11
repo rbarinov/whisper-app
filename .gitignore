@@ -23,3 +23,10 @@ whisperapp_debug.log
 
 .opencode/plans
 .opencode/sessions
+
+# Electron app build artifacts
+electron-app/dist/
+electron-app/out/
+electron-app/node_modules/
+electron-app/playwright-report/
+node_modules/

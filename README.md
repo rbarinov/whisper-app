@@ -1,4 +1,51 @@
-# WhisperApp
+# WhisperApp — Cross-Platform (Electron)
+
+A cross-platform desktop app for speech-to-text transcription. Works on macOS (Apple Silicon + Intel), Windows, and Linux.
+
+## Quick Install
+
+### macOS
+1. Download `WhisperApp-mac-universal.dmg` from [Releases](https://github.com/rbarinov/whisper-app/releases/latest)
+2. Open the DMG, drag WhisperApp.app to Applications
+3. Run: `xattr -cr /Applications/WhisperApp.app`
+
+### Windows
+1. Download `WhisperApp-Setup.exe` from [Releases](https://github.com/rbarinov/whisper-app/releases/latest)
+2. Run the installer
+3. If SmartScreen appears: click "More info" → "Run anyway"
+
+### Linux
+**AppImage:**
+```bash
+chmod +x WhisperApp-*.AppImage
+./WhisperApp-*.AppImage
+```
+**deb:** `sudo dpkg -i whisperapp_*.deb`
+**rpm:** `sudo rpm -i whisperapp-*.rpm`
+
+> **Linux note:** On GNOME, install the [AppIndicator extension](https://extensions.gnome.org/extension/615/appindicator-support/) to see the system tray icon.
+
+## Build from Source (Electron)
+
+```bash
+# Prerequisites: Node.js 20+
+cd electron-app
+npm install
+npm run dev      # Development mode
+npm run build    # Production build
+npm run make     # Build platform package (DMG/exe/AppImage)
+```
+
+## Configuration
+Click the tray icon → Settings to configure:
+- **API Base URL**: Your Whisper API endpoint (default: `https://api.openai.com`)
+- **API Key**: Your API key
+- **Hotkey**: Default F5 (hold to record, release to transcribe)
+
+---
+
+## Legacy macOS-only Version (Apple Silicon)
+> This is the original Swift/SwiftUI app. For cross-platform use, see above.
 
 A lightweight macOS menu bar app for speech-to-text transcription using OpenAI-compatible Whisper API. Hold a hotkey to record, release to transcribe, and the text is automatically pasted into the active text field.
 

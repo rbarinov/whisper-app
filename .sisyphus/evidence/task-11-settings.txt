@@ -1,0 +1,86 @@
+TASK 11: SETTINGS PERSISTENCE SERVICE
+======================================
+
+DELIVERABLES COMPLETED:
+=======================
+
+✓ electron-app/src/main/services/settings-service.ts created
+  - 84 lines
+  - Exports: loadSettings(), saveSettings(), getSettingsPath()
+  - Uses app.getPath('userData') for platform-specific directory (G13)
+  - Atomic writes: write to temp file → rename
+  - Graceful merging with DEFAULT_SETTINGS
+  - Error handling: returns defaults on file not found or invalid JSON
+
+✓ electron-app/tests/unit/settings-service.test.ts created
+  - 291 lines
+  - 15 test cases covering:
+    1. getSettingsPath returns correct path
+    2. loadSettings returns defaults when file missing
+    3. loadSettings parses existing file correctly
+    4. loadSettings merges partial data with defaults
+    5. loadSettings handles invalid JSON gracefully
+    6. loadSettings handles missing nested fields (hotkeyConfig)
+    7. saveSettings creates file if missing
+    8. saveSettings writes valid JSON
+    9. saveSettings preserves all fields in roundtrip
+    10. saveSettings overwrites existing file correctly
+    11. saveSettings formats JSON with pretty-printing (2 spaces)
+    12. saveSettings creates directory structure if missing
+    13. saveSettings uses atomic writes (temp file cleanup)
+    14. Integration: complex settings roundtrip
+    15. Plus setup/teardown with temporary directories per test
+
+✓ npm test passes
+  Test Results:
+  - Test Files: 2 passed (2)
+  - Tests: 18 passed (18)
+  - Duration: 189ms
+  - Both example.test.ts and settings-service.test.ts pass
+
+IMPLEMENTATION DETAILS:
+=======================
+
+Settings Service (settings-service.ts):
+- getSettingsPath(): Returns {userData}/settings.json
+- loadSettings(): 
+  - Reads from {userData}/settings.json
+  - Returns DEFAULT_SETTINGS if file missing
+  - Merges file contents with defaults (handles partial data)
+  - Returns defaults on invalid JSON (no exceptions)
+  - Handles missing nested fields gracefully
+- saveSettings(settings):
+  - Creates userData directory if needed
+  - Writes to temp file first
+  - Atomically renames temp → settings.json
+  - Uses JSON.stringify(settings, null, 2) for pretty-printing
+  - Throws on write errors (logged to console)
+
+Test Pattern (settings-service.test.ts):
+- Mocks 'electron' module with vi.mock() before importing service
+- Uses temporary directories per test (mkdtempSync)
+- Clean setup/teardown with beforeEach/afterEach
+- No Electron runtime required in tests
+- All tests use vitest (imported from 'vitest')
+
+NOTES:
+======
+- Service runs in Electron main process (CommonJS via tsconfig.main.json)
+- Tests use Vitest (not Jest)
+- app.getPath('userData') provides platform-specific storage:
+  - macOS: ~/Library/Application Support/{appName}/
+  - Linux: ~/.config/{appName}/
+  - Windows: %APPDATA%\{appName}\
+- Atomic write pattern prevents corruption on process crash
+- Lazy evaluation of app.getPath() allows test mocking
+- All field merging ensures forward/backward compatibility
+
+COMMIT MESSAGE:
+===============
+feat(electron): add settings persistence service
+
+Implement loadSettings(), saveSettings(), and getSettingsPath() to handle
+reading/writing settings.json from platform-appropriate userData directory.
+Uses atomic writes and graceful defaults merging for robustness.
+
+DATE: 2026-03-11

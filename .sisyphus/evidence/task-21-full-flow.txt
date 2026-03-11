@@ -1,0 +1,26 @@
+Task 21 — Recording Lifecycle Integration (2026-03-11)
+
+Updated files:
+- electron-app/src/main/app-state.ts
+- electron-app/src/main/services/transcription-service.ts
+- electron-app/src/main/services/llm-service.ts
+- electron-app/tests/unit/app-state.test.ts
+
+Implemented flow:
+- `stopRecordingAndTranscribe()` now executes full lifecycle via `runRecordingLifecycle()`.
+- Hold end flow: stop renderer audio via state transition, receive recording data, encode/store WAV buffer, persist WAV file, create history entry (`status=transcribing`), transcribe, optional LLM process, paste, finalize history/status/overlay.
+- LLM enabled path sets `recordingState=processing` and overlay `processing` before calling LLM.
+- LLM failure fallback (G18): uses `rawText` as final text and sets `errorMessage` to `LLM failed: {error}` while keeping entry `status=successful`.
+- Transcription failure path updates entry to `status=failed`, sets error overlay, and sets app state to `{ type: 'error', message }`.
+- Added `currentAbortController` on AppStateManager, passed `signal` to both transcription and LLM services, and abort support in both HTTP services.
+- Added `lastRecordingBuffer: Buffer | null` and wired transcription to use in-memory WAV buffer.
+
+Unit tests added/updated (`tests/unit/app-state.test.ts`):
+1) Full flow without LLM: successful transcription updates history + paste call.
+2) Full flow with LLM: processing state/overlay + processed text persisted/pasted.
+3) LLM failure fallback: rawText persisted/pasted with `errorMessage` containing `LLM failed:`.
+
+Verification:
+- lsp_diagnostics on changed files: clean
+- npm test: PASS (10 files, 118 tests)
+- npx tsc --noEmit: PASS (exit 0)

@@ -1,0 +1,54 @@
+Task 23: macOS-Specific Polish — Evidence
+==========================================
+
+## Changes Made
+
+### 1. Dock Visibility Tracking (electron-app/src/main/main.ts)
+
+- Added `openWindowCount` counter and `dockHideTimer` variable
+- Added `updateDockVisibility(count: number)` helper function:
+  - Guarded with `if (process.platform !== 'darwin' || !app.dock)` — safe on Windows/Linux
+  - When count > 0: calls `app.dock.show()` to make app appear in Cmd+Tab
+  - When count === 0: calls `app.dock.hide()` after 100ms delay (matches Swift reference pattern)
+  - Clears any pending hide timer when a new window opens (prevents race conditions)
+- Added `export function trackWindowForDock(win: BrowserWindow)`:
+  - Increments openWindowCount and calls updateDockVisibility
+  - Registers `win.on('closed')` handler to decrement count and update dock
+  - Ready for use when Settings/History windows are implemented
+- Moved initial `app.dock.hide()` from `createWindow()` to `app.whenReady()` handler
+  - This is more correct: dock should be hidden at app startup, not per-window creation
+
+### 2. App Name (electron-app/src/main/main.ts)
+
+- Added `app.name = 'WhisperApp'` as first line in `app.whenReady()` handler
+- Ensures consistent app name across macOS system UI (About menu, notifications, etc.)
+
+### 3. electron-builder.yml — macOS Universal Binary
+
+- Changed mac target from simple list (`- dmg`, `- zip`) to structured format with explicit arch
+- Both `dmg` and `zip` targets now specify `arch: [x64, arm64]`
+- This produces separate builds for Intel and Apple Silicon Macs
+- Config: target objects with `target` and `arch` keys per electron-builder docs
+
+### 4. Tray Icon Template Image (electron-app/src/main/tray.ts)
+
+- ALREADY IMPLEMENTED — `loadIcon()` method already calls `icon.setTemplateImage(true)` 
+  when `process.platform === 'darwin'`
+- No changes needed; existing code at lines 81-83 handles this correctly
+
+## Verification
+
+- `npx tsc --noEmit` — exits 0, no type errors
+- `npm test` — all 123 tests pass
+- LSP diagnostics on main.ts — no errors
+- All dock/template image calls are wrapped in platform guards
+- Windows/Linux functionality is unaffected (guards prevent dock API calls)
+
+## Files Modified
+
+1. `electron-app/src/main/main.ts` — dock visibility tracking, app.name, moved dock.hide()
+2. `electron-app/electron-builder.yml` — macOS arch: [x64, arm64] for dmg and zip targets
+
+## Files Already Correct (No Changes Needed)
+
+1. `electron-app/src/main/tray.ts` — setTemplateImage(true) already present

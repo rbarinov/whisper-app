@@ -1,0 +1,61 @@
+TASK 2: Shared TypeScript Types and Constants - EVIDENCE
+========================================================
+
+TYPESCRIPT COMPILER CHECK:
+$ cd /Users/roman/work/roman/whisper-app/electron-app && npx tsc --noEmit
+✓ Exit code: 0 (clean, no type errors)
+
+FILES CREATED:
+✓ electron-app/src/shared/types.ts (61 lines)
+✓ electron-app/src/shared/constants.ts (62 lines)
+✓ electron-app/src/shared/ipc-channels.ts (34 lines)
+
+VERIFICATION:
+✓ gpt-oss-20b constant found (line 11 in constants.ts)
+✓ post-processor prompt found (line 14 in constants.ts)
+✓ RETRY_DELAYS constant exists (count: 1)
+
+EXACT SWIFT APP MATCHES:
+✓ DEFAULT_API_BASE_URL: 'https://api.openai.com' (from AppSettings.swift line 102)
+✓ DEFAULT_MODEL_NAME: 'whisper-1' (from AppSettings.swift line 103)
+✓ DEFAULT_LLM_MODEL_NAME: 'gpt-oss-20b' (from AppSettings.swift line 104) — GUARDRAIL G15
+✓ DEFAULT_LLM_SYSTEM_PROMPT: Character-for-character match from AppSettings.swift lines 105-113
+
+TYPE DEFINITIONS:
+✓ RecordingState: Exact match to AppState.swift lines 8-14
+✓ TranscriptionStatus: Matches TranscriptionEntry.swift enum
+✓ TranscriptionEntry: Exact match to TranscriptionEntry.swift struct
+✓ HotkeyConfig: Exact match to HotkeyConfig struct
+✓ OverlayState: Exact match to RecordingOverlayView.swift lines 7-15
+✓ HotkeyAction: Exact match to HotkeyManager.swift lines 8-14
+✓ AppSettings: Aggregates all published properties from AppSettings.swift
+✓ AppState: Contains core state needed for app
+
+IPC CHANNELS:
+✓ All 24 channels defined in ipc-channels.ts
+✓ Renderer→Main: 17 channels (recording, settings, history, hotkey, audio, UI)
+✓ Main→Renderer: 4 channels (state, overlay, hotkey, wayland)
+
+CONSTANTS:
+✓ DEFAULT_HOTKEY_KEY_CODE: 63 (Fn key — actual code determined in Task 3)
+✓ DEFAULT_HOTKEY_KEY_NAME: 'F5'
+✓ MAX_RETRIES: 3
+✓ RETRY_DELAYS_MS: [500, 1500, 3000] (readonly tuple)
+✓ WHISPER_TIMEOUT_MS: 60000
+✓ LLM_TIMEOUT_MS: 30000
+✓ HISTORY_MAX_ENTRIES: 100
+✓ DOUBLE_PRESS_THRESHOLD_MS: 400
+✓ HOLD_THRESHOLD_MS: 300
+✓ OVERLAY_DISMISS_DONE_MS: 3000
+✓ OVERLAY_DISMISS_ERROR_MS: 5000
+✓ OVERLAY_DISMISS_CANCELLED_MS: 1500
+✓ MIN_RECORDING_DURATION_S: 0.5
+
+DEFAULT_SETTINGS EXPORT:
+✓ Combines all defaults into single AppSettings object
+✓ apiKey left empty (user must provide)
+✓ llmPostProcessingEnabled defaults to false
+✓ All other values match Swift app
+
+STATUS: ✓ COMPLETE
+All 3 files created, TypeScript compiler clean, all verification checks pass.

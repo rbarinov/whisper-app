@@ -1,0 +1,35 @@
+[2026-03-11] Task 6 Evidence: Audio Recording Service (Web Audio API + WAV Encoding)
+
+Implemented files:
+- electron-app/src/main/services/audio-recorder.ts
+  - resampleTo16kHz(samples, inputSampleRate): linear interpolation to 16000 Hz
+  - buildWAVHeader(dataLength): 44-byte RIFF/WAVE header (mono, 16-bit, 16kHz, LE)
+  - encodeWAV(samples, inputSampleRate): resample + Float32→Int16 PCM + header concat
+  - saveRecording(samples, inputSampleRate, outputDir): writes recording-{timestamp}.wav and returns metadata
+
+- electron-app/src/renderer/audio-worklet-processor.js
+  - AudioWorkletProcessor ('pcm-processor') posting Float32 PCM chunks via MessagePort
+
+- electron-app/src/renderer/audio-recorder-renderer.ts
+  - startRecording(): getUserMedia + AudioContext + addModule + AudioWorkletNode + sample accumulation
+  - stopRecording(): disconnect/cleanup + concatenate chunks + return raw PCM Float32Array
+  - getSampleRate(): exposes input device sample rate
+
+- electron-app/tests/unit/audio-recorder.test.ts
+  - 7 pure-function tests for header structure/fields, resample ratios (44.1/48k→16k), WAV encoding header/data sizes
+
+Required references reviewed:
+- WhisperApp/WhisperApp/Services/AudioRecorder.swift (lines 18-25 format spec)
+- electron-app/src/shared/ipc-channels.ts
+- electron-app/src/shared/types.ts
+
+Verification:
+- LSP diagnostics (changed TS files): clean
+  - src/main/services/audio-recorder.ts: no diagnostics
+  - src/renderer/audio-recorder-renderer.ts: no diagnostics
+  - tests/unit/audio-recorder.test.ts: no diagnostics
+
+- Test run:
+  - Command: npm test (in /Users/roman/work/roman/whisper-app/electron-app)
+  - Result: PASS
+  - Summary: 8 test files passed, 102 tests passed

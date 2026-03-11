@@ -1,0 +1,50 @@
+Task 26: Release Pipeline GitHub Actions workflow
+==================================================
+Date: 2026-03-11
+
+## Files Created
+- .github/workflows/release-electron.yml (185 lines)
+
+## Workflow Structure
+- Name: "Release Electron App"
+- Trigger: push tags matching 'v*'
+- Permissions: contents: write (needed for GitHub Release creation)
+
+## Jobs (4 total)
+1. build-macos (macos-14)
+   - LOC enforcement, Node 20, npm ci, build:main, build, test, make
+   - Uploads: electron-macos artifact from electron-app/dist/make/**
+
+2. build-windows (windows-latest)
+   - LOC enforcement (bash shell), Node 20, npm ci, build:main, build, test, make
+   - Uploads: electron-windows artifact from electron-app/dist/make/**
+
+3. build-linux (ubuntu-22.04)
+   - LOC enforcement, Linux deps (libfuse-dev, rpm), Node 20, npm ci, build:main, build, test, make
+   - Uploads: electron-linux artifact from electron-app/dist/make/**
+
+4. publish (ubuntu-latest)
+   - needs: [build-macos, build-windows, build-linux]
+   - Downloads all 3 artifacts into artifacts/{macos,windows,linux}
+   - Lists artifacts for debugging
+   - Creates GitHub Release with `gh release create`
+   - Release notes include install instructions for macOS, Windows, Linux
+
+## Guardrails Verified
+- G1: No auto-update publishing — uses `npm run make` (no --publish flag)
+- G2: No code signing — no signing certificates or notarization steps
+
+## Verification
+- YAML syntax validated: python3 -c "import yaml; yaml.safe_load(...)" — PASSED
+
+## Key Differences from build-electron.yml (T25)
+- T25 triggers on push to main / PRs; T26 triggers on tag push v*
+- T25 uploads to dist/**; T26 uploads to dist/make/** (distributable artifacts only)
+- T26 artifact names: electron-macos, electron-windows, electron-linux (for publish job)
+- T26 adds publish job that creates GitHub Release with all platform artifacts
+
+## Release Notes Format
+Includes platform-specific install instructions:
+- macOS: .dmg install + xattr -cr for Gatekeeper bypass
+- Windows: .exe installer + SmartScreen bypass
+- Linux: AppImage, deb, rpm install commands
