@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '../components/Button';
-import { StatusBadge } from '../components/StatusBadge';
+import { WindowChrome } from '../components/WindowChrome';
 import type { TranscriptionEntry } from '../../shared/types';
 
 function formatRelativeTime(timestamp: number): string {
@@ -12,6 +12,15 @@ function formatRelativeTime(timestamp: number): string {
   const diffHours = Math.floor(diffMins / 60);
   if (diffHours < 24) return `${diffHours}h ago`;
   return `${Math.floor(diffHours / 24)}d ago`;
+}
+
+function HistoryMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="section-card min-w-[7rem] px-3 py-1.5">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#6b746f]">{label}</p>
+      <p className="mt-0.5 text-sm font-semibold text-[#16211b]">{value}</p>
+    </div>
+  );
 }
 
 function HistoryRow({
@@ -34,6 +43,11 @@ function HistoryRow({
   const [copied, setCopied] = useState(false);
   const isPlaying = playingEntryId === entry.id;
   const hasAudio = !!entry.audioFilePath;
+  const hasProcessedVariant =
+    entry.status === 'successful' &&
+    Boolean(entry.text) &&
+    Boolean(entry.rawText) &&
+    entry.text?.trim() !== entry.rawText?.trim();
 
   const handleCopy = (text: string) => {
     onCopy(text);
@@ -41,79 +55,115 @@ function HistoryRow({
     setTimeout(() => setCopied(false), 1500);
   };
 
-  const statusBadgeType =
-    entry.status === 'successful' ? 'idle' :
-    entry.status === 'failed' ? 'error' :
-    entry.status === 'cancelled' ? 'cancelled' :
-    entry.status === 'transcribing' ? 'transcribing' : 'idle';
+  const statusPillClass =
+    entry.status === 'successful' ? 'status-pill status-pill--ready' :
+    entry.status === 'failed' ? 'status-pill status-pill--pending' :
+    entry.status === 'cancelled' ? 'status-pill status-pill--muted' :
+    'status-pill status-pill--pending';
 
   return (
-    <div className="border-b border-gray-100 py-3 px-4">
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <StatusBadge status={statusBadgeType} size="sm" />
-          <span className="text-xs text-gray-400">
-            {formatRelativeTime(new Date(entry.timestamp).getTime())}
-            {entry.durationSeconds ? ` \u00b7 ${entry.durationSeconds.toFixed(1)}s` : ''}
-          </span>
+    <article className={`history-entry ${entry.status === 'transcribing' ? 'history-entry--live' : ''}`}>
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2.5 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <span className={statusPillClass}>
+                {entry.status === 'successful'
+                  ? 'Ready'
+                  : entry.status === 'failed'
+                    ? 'Retry needed'
+                    : entry.status === 'cancelled'
+                      ? 'Cancelled'
+                      : 'Transcribing'}
+              </span>
+              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#6b746f]">
+                {formatRelativeTime(new Date(entry.timestamp).getTime())}
+              </span>
+              <span className="text-[13px] text-[#6b746f]">
+                {entry.durationSeconds ? `${entry.durationSeconds.toFixed(1)}s` : 'Short note'}
+              </span>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {hasAudio && (
+              <button
+                type="button"
+                className="action-chip"
+                onClick={() =>
+                  isPlaying
+                    ? onStop()
+                    : entry.audioFilePath && onPlay(entry.id, entry.audioFilePath)
+                }
+              >
+                {isPlaying ? 'Stop' : 'Play'}
+              </button>
+            )}
+            {(entry.status === 'failed' || entry.status === 'cancelled') && hasAudio && (
+              <button
+                type="button"
+                className="action-chip action-chip--accent"
+                onClick={() => onRetry(entry.id)}
+              >
+                Retry
+              </button>
+            )}
+            {entry.status === 'successful' && entry.text && (
+              <button
+                type="button"
+                className="action-chip action-chip--accent"
+                onClick={() => handleCopy(entry.text ?? '')}
+              >
+                {copied ? 'Copied' : 'Copy'}
+              </button>
+            )}
+            <button
+              type="button"
+              className="action-chip action-chip--danger"
+              onClick={() => onDelete(entry.id)}
+            >
+              Delete
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-1 flex-shrink-0">
-          {hasAudio && (
-            <button
-              className="text-xs px-2 py-0.5 rounded bg-gray-100 hover:bg-gray-200"
-              onClick={() =>
-                isPlaying
-                  ? onStop()
-                  : entry.audioFilePath && onPlay(entry.id, entry.audioFilePath)
-              }
-            >
-              {isPlaying ? '⏹ Stop' : '▶ Play'}
-            </button>
+
+        <div className="border-t border-[#15231e]/6 pt-3">
+          {entry.status === 'transcribing' && (
+            <p className="text-sm font-medium text-[#4675d8]">Transcribing...</p>
           )}
-          {(entry.status === 'failed' || entry.status === 'cancelled') && hasAudio && (
-            <button
-              className="text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-600 hover:bg-blue-100"
-              onClick={() => onRetry(entry.id)}
-            >
-              Retry
-            </button>
+          {entry.status === 'successful' && entry.text && (
+            <div className="space-y-2.5">
+              {entry.errorMessage && (
+                <p className="mb-3 rounded-[16px] bg-[rgba(217,119,69,0.08)] px-3 py-2 text-sm text-[#b46f48]">
+                  Partial issue: {entry.errorMessage}
+                </p>
+              )}
+              <div>
+                {hasProcessedVariant ? (
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#6b746f]">Final</p>
+                ) : null}
+                <p className="clamp-3 text-[14px] leading-6 text-[#1c2924]">{entry.text}</p>
+              </div>
+              {hasProcessedVariant ? (
+                <div className="rounded-[14px] border border-[#15231e]/8 bg-white/60 px-3 py-2.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#6b746f]">
+                    Original
+                  </p>
+                  <p className="mt-1.5 clamp-3 text-[13px] leading-5 text-[#5f6964]">{entry.rawText}</p>
+                </div>
+              ) : null}
+            </div>
           )}
-          <button
-            className="text-xs px-2 py-0.5 rounded bg-red-50 text-red-500 hover:bg-red-100"
-            onClick={() => onDelete(entry.id)}
-          >
-            Delete
-          </button>
+          {entry.status === 'failed' && (
+            <p className="text-sm leading-6 text-[#b45347]">
+              Transcription failed{entry.errorMessage ? `: ${entry.errorMessage}` : ''}
+            </p>
+          )}
+          {entry.status === 'cancelled' && (
+            <p className="text-sm leading-6 text-[#6b746f]">Recording cancelled</p>
+          )}
         </div>
       </div>
-
-      {/* Content by status */}
-      {entry.status === 'transcribing' && (
-        <p className="mt-1 text-xs text-blue-500 animate-pulse">Transcribing...</p>
-      )}
-      {entry.status === 'successful' && entry.text && (
-        <div className="mt-1">
-          {entry.errorMessage && (
-            <p className="text-xs text-orange-500 mb-1">⚠ {entry.errorMessage}</p>
-          )}
-          <p className="text-sm text-gray-800 line-clamp-4">{entry.text}</p>
-          <button
-            className="mt-1 text-xs text-blue-500 hover:underline"
-            onClick={() => entry.text && handleCopy(entry.text)}
-          >
-            {copied ? '✓ Copied' : 'Copy'}
-          </button>
-        </div>
-      )}
-      {entry.status === 'failed' && (
-        <p className="mt-1 text-xs text-red-500">
-          Transcription failed{entry.errorMessage ? `: ${entry.errorMessage}` : ''}
-        </p>
-      )}
-      {entry.status === 'cancelled' && (
-        <p className="mt-1 text-xs text-gray-400">Recording cancelled</p>
-      )}
-    </div>
+    </article>
   );
 }
 
@@ -121,70 +171,177 @@ function HistoryRow({
 export function HistoryView() {
   const [history, setHistory] = useState<TranscriptionEntry[]>([]);
   const [playingEntryId, setPlayingEntryId] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  useEffect(() => {
-    window.api.getHistory().then((h) => setHistory(h));
-    const unsubscribe = window.api.onStateUpdate((state: unknown) => {
-      const s = state as { history?: TranscriptionEntry[] };
-      if (s.history) setHistory(s.history);
-    });
-    return unsubscribe;
+  const stopPlayback = useCallback(async (syncMain = true) => {
+    const audio = audioRef.current;
+    if (audio) {
+      audio.pause();
+      audio.currentTime = 0;
+      audio.removeAttribute('src');
+      audio.load();
+    }
+
+    setPlayingEntryId(null);
+    if (syncMain) {
+      await window.api.stopAudio();
+    }
   }, []);
 
-  const handlePlay = (id: string, path: string) => {
-    setPlayingEntryId(id);
-    window.api.playAudio(id, path);
-  };
-  const handleStop = () => {
-    setPlayingEntryId(null);
-    window.api.stopAudio();
-  };
+  useEffect(() => {
+    const audio = new Audio();
+    audioRef.current = audio;
+
+    const handleEnded = () => {
+      void stopPlayback(true);
+    };
+
+    audio.addEventListener('ended', handleEnded);
+    audio.addEventListener('error', handleEnded);
+
+    return () => {
+      audio.removeEventListener('ended', handleEnded);
+      audio.removeEventListener('error', handleEnded);
+      audio.pause();
+      audio.removeAttribute('src');
+      audio.load();
+      audioRef.current = null;
+    };
+  }, [stopPlayback]);
+
+  useEffect(() => {
+    void window.api.getHistory().then((h) => setHistory(h));
+    void window.api.getAppState().then((state) => {
+      const appState = state as { isAudioPlaying?: boolean; playingEntryId?: string | null };
+      if (appState.isAudioPlaying) {
+        setPlayingEntryId(appState.playingEntryId ?? null);
+      }
+    });
+
+    const unsubscribe = window.api.onStateUpdate((state: unknown) => {
+      const s = state as {
+        history?: TranscriptionEntry[];
+        isAudioPlaying?: boolean;
+        playingEntryId?: string | null;
+      };
+      if (s.history) setHistory(s.history);
+      if (typeof s.isAudioPlaying === 'boolean') {
+        setPlayingEntryId(s.isAudioPlaying ? s.playingEntryId ?? null : null);
+        if (!s.isAudioPlaying && audioRef.current && !audioRef.current.paused) {
+          void stopPlayback(false);
+        }
+      }
+    });
+
+    return unsubscribe;
+  }, [stopPlayback]);
+
+  const handlePlay = useCallback(async (id: string, path: string) => {
+    const audio = audioRef.current;
+    if (!audio) {
+      return;
+    }
+
+    try {
+      const resolvedPath = await window.api.getAudioPath(path);
+      audio.pause();
+      audio.currentTime = 0;
+      audio.src = encodeURI(`file://${resolvedPath}`);
+      setPlayingEntryId(id);
+      await audio.play();
+      await window.api.playAudio(id, resolvedPath);
+    } catch (error) {
+      console.error('Failed to play audio:', error);
+      await stopPlayback(true);
+    }
+  }, [stopPlayback]);
+
+  const handleStop = useCallback(() => {
+    void stopPlayback(true);
+  }, [stopPlayback]);
   const handleCopy = (text: string) => window.api.copyToClipboard(text);
   const handleDelete = async (id: string) => {
+    if (playingEntryId === id) {
+      await stopPlayback(true);
+    }
     await window.api.deleteEntry(id);
     setHistory((h) => h.filter((e) => e.id !== id));
   };
   const handleRetry = (id: string) => window.api.retryTranscription(id);
   const handleClearAll = async () => {
+    await stopPlayback(true);
     await window.api.clearHistory();
     setHistory([]);
-    setPlayingEntryId(null);
   };
 
-  return (
-    <div className="flex flex-col h-screen bg-white text-gray-900 font-sans">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
-        <h1 className="text-base font-semibold">History</h1>
-        {history.length > 0 && (
-          <Button size="sm" variant="danger" onClick={handleClearAll}>
-            Clear All
-          </Button>
-        )}
-      </div>
+  const recordingsWithAudio = history.filter((entry) => Boolean(entry.audioFilePath)).length;
+  const latestEntryAge = history[0] ? formatRelativeTime(new Date(history[0].timestamp).getTime()) : 'No entries';
 
-      {/* Entry list */}
-      <div className="flex-1 overflow-y-auto">
-        {history.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-2">
-            <span className="text-3xl">🎤</span>
-            <p className="text-sm">No transcriptions yet</p>
-            <p className="text-xs">Hold F5 to record</p>
+  return (
+    <div className="app-shell app-shell--flush">
+      <div className="window-panel window-panel--flush">
+        <div className="window-content overflow-y-auto overflow-x-hidden">
+          <div className="flex min-h-full min-w-0 flex-col">
+            <div className="px-4 pt-3">
+              <WindowChrome label="History" />
+            </div>
+
+            <header className="border-b border-[#15231e]/6 px-4 pb-3 pt-1.5">
+              <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex flex-wrap items-end gap-3">
+                  <h1 className="view-title text-[2.25rem]">History</h1>
+                  <p className="pb-1 text-sm text-[#6b746f]">
+                    {history.length > 0 ? `${history.length} entries` : 'No entries'}
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 lg:max-w-[36rem] lg:justify-end">
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <HistoryMetric label="Latest" value={latestEntryAge} />
+                    <HistoryMetric label="Audio" value={String(recordingsWithAudio)} />
+                  </div>
+                  {history.length > 0 && (
+                    <Button size="sm" variant="danger" className="shrink-0" onClick={handleClearAll}>
+                      Clear All
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </header>
+
+            <div className="flex-1 px-4 py-4">
+              {history.length === 0 ? (
+                <div className="flex h-full items-center justify-center">
+                  <div className="section-card flex max-w-md flex-col items-center px-6 py-6 text-center">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-[22px] border border-[#15231e]/10 bg-[#15231e] text-white shadow-[0_20px_36px_rgba(21,35,30,0.16)]">
+                      <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="1.7">
+                        <rect x="8" y="3" width="8" height="12" rx="4" />
+                        <path d="M6 11a6 6 0 0 0 12 0" />
+                        <path d="M12 17v4" />
+                      </svg>
+                    </div>
+                    <p className="mt-4 text-lg font-semibold tracking-[-0.02em] text-[#16211b]">No transcriptions yet</p>
+                    <p className="mt-1.5 text-sm leading-6 text-[#6b746f]">Hold F5 to record</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="mx-auto flex max-w-5xl flex-col gap-2.5">
+                  {history.map((entry) => (
+                    <HistoryRow
+                      key={entry.id}
+                      entry={entry}
+                      playingEntryId={playingEntryId}
+                      onPlay={handlePlay}
+                      onStop={handleStop}
+                      onCopy={handleCopy}
+                      onDelete={handleDelete}
+                      onRetry={handleRetry}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-        ) : (
-          history.map((entry) => (
-            <HistoryRow
-              key={entry.id}
-              entry={entry}
-              playingEntryId={playingEntryId}
-              onPlay={handlePlay}
-              onStop={handleStop}
-              onCopy={handleCopy}
-              onDelete={handleDelete}
-              onRetry={handleRetry}
-            />
-          ))
-        )}
+        </div>
       </div>
     </div>
   );
