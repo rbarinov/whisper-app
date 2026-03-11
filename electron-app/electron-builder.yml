@@ -24,10 +24,10 @@ mac:
   target:
     - target: dmg
       arch:
-        - universal
+        - arm64
     - target: zip
       arch:
-        - universal
+        - arm64
   category: public.app-category.utilities
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
