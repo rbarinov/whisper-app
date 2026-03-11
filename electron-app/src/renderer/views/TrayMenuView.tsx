@@ -57,23 +57,30 @@ export function TrayMenuView() {
     recordingState === 'error' ? 'error' : 'idle';
 
   return (
-    <div className="bg-gray-900 text-white w-64 rounded-lg shadow-2xl overflow-hidden">
-      {/* Status row */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-700">
-        <StatusBadge status={statusType} size="sm" />
-        <span className="text-sm font-medium">
-          {stateLabels[recordingState] ?? recordingState}
-        </span>
+    <div className="w-[17.5rem] overflow-hidden rounded-[22px] border border-[#15231e]/10 bg-[#f7f4ee] text-[#16211b] shadow-[0_20px_48px_rgba(21,35,30,0.18)]">
+      <div className="border-b border-[#15231e]/8 px-4 py-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <StatusBadge status={statusType} size="sm" />
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#6b746f]">WhisperApp</p>
+              <p className="truncate text-sm font-semibold text-[#16211b]">
+                {stateLabels[recordingState] ?? recordingState}
+              </p>
+            </div>
+          </div>
+          <span className="rounded-full border border-[#15231e]/8 bg-white/80 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#6b746f]">
+            F5
+          </span>
+        </div>
       </div>
 
-      {/* Wayland notification */}
       {waylandMsg && (
-        <div className="px-4 py-2 text-xs text-yellow-300 bg-yellow-900/30">
+        <div className="border-b border-[#15231e]/8 bg-[rgba(195,139,54,0.1)] px-4 py-2 text-xs text-[#8d6021]">
           {waylandMsg}
         </div>
       )}
 
-      {/* Record button */}
       <div className="px-4 py-3">
         {isBusy && !isRecording ? (
           <Button
@@ -98,13 +105,12 @@ export function TrayMenuView() {
         )}
       </div>
 
-      {/* Last transcription */}
       {lastEntry && lastEntry.status === 'successful' && lastEntry.text && (
-        <div className="px-4 pb-3 border-b border-gray-700">
-          <p className="text-xs text-gray-400 mb-1">Last transcription</p>
-          <p className="text-xs text-gray-200 line-clamp-3">{lastEntry.text}</p>
+        <div className="border-b border-[#15231e]/8 px-4 pb-3">
+          <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#6b746f]">Last transcription</p>
+          <p className="line-clamp-3 text-xs leading-5 text-[#4b5650]">{lastEntry.text}</p>
           <button
-            className="mt-1 text-xs text-blue-400 hover:underline"
+            className="mt-1.5 text-xs font-semibold text-[#115e59] hover:underline"
             onClick={() => lastEntry.text && window.api.copyToClipboard(lastEntry.text)}
           >
             Copy
@@ -112,22 +118,27 @@ export function TrayMenuView() {
         </div>
       )}
 
-      {/* Navigation buttons */}
-      <div className="flex flex-col">
+      <div className="grid gap-px bg-[#15231e]/8">
         <button
-          className="px-4 py-2 text-left text-sm hover:bg-gray-800 transition-colors"
+          className="bg-white/72 px-4 py-2.5 text-left text-sm font-medium text-[#16211b] transition-colors hover:bg-white"
           onClick={() => window.api.showHistory()}
         >
           History
         </button>
         <button
-          className="px-4 py-2 text-left text-sm hover:bg-gray-800 transition-colors"
+          className="bg-white/72 px-4 py-2.5 text-left text-sm font-medium text-[#16211b] transition-colors hover:bg-white"
           onClick={() => window.api.showSettings()}
         >
           Settings
         </button>
         <button
-          className="px-4 py-2 text-left text-sm text-red-400 hover:bg-gray-800 transition-colors"
+          className="bg-white/72 px-4 py-2.5 text-left text-sm font-medium text-[#16211b] transition-colors hover:bg-white"
+          onClick={() => window.api.showOnboarding()}
+        >
+          Onboarding
+        </button>
+        <button
+          className="bg-white/72 px-4 py-2.5 text-left text-sm font-medium text-[#b45347] transition-colors hover:bg-white"
           onClick={() => window.api.quit()}
         >
           Quit

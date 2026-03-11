@@ -24,6 +24,7 @@ declare global {
       getAudioPath: (relPath: string) => Promise<string>;
       showSettings: () => Promise<void>;
       showHistory: () => Promise<void>;
+      showOnboarding: () => Promise<void>;
       quit: () => Promise<void>;
       startHotkeyCapture: () => Promise<void>;
       stopHotkeyCapture: () => Promise<void>;
@@ -31,6 +32,9 @@ declare global {
       requestMicrophonePermission: () => Promise<boolean>;
       requestAccessibility: () => Promise<PermissionState>;
       openAccessibilitySettings: () => Promise<void>;
+      closeWindow?: () => Promise<void>;
+      minimizeWindow?: () => Promise<void>;
+      toggleMaximizeWindow?: () => Promise<void>;
       getAppState: () => Promise<unknown>;
       onStateUpdate: (cb: (state: unknown) => void) => () => void;
       onOverlayUpdate: (cb: (state: unknown) => void) => () => void;

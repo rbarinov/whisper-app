@@ -14,7 +14,7 @@ import { AudioRecorderRenderer } from './audio-recorder-renderer';
  */
 export default function App() {
   const params = new URLSearchParams(window.location.search);
-  const view = params.get('view');
+  const view = params.get('view') ?? 'settings';
   const recorderRef = useRef<AudioRecorderRenderer | null>(null);
   const recordingRef = useRef(false);
 
@@ -56,6 +56,16 @@ export default function App() {
       recorderRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    document.body.dataset.view = view;
+    document.documentElement.dataset.view = view;
+
+    return () => {
+      document.body.removeAttribute('data-view');
+      document.documentElement.removeAttribute('data-view');
+    };
+  }, [view]);
 
   switch (view) {
     case 'overlay':
