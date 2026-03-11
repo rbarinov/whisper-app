@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { Button } from '../components/Button';
+import { LegalNotice } from '../components/LegalNotice';
 import { WindowChrome } from '../components/WindowChrome';
 import type { AppSettings } from '../../shared/types';
 import { DEFAULT_LLM_MODEL_NAME, DEFAULT_LLM_SYSTEM_PROMPT } from '../../shared/constants';
@@ -338,6 +339,8 @@ export function SettingsView() {
                     </label>
                   </div>
                 </section>
+
+                <LegalNotice className="min-[980px]:col-span-2" />
               </div>
             </div>
           </div>

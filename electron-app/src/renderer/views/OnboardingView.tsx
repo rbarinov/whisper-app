@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from '../components/Button';
+import { LegalNotice } from '../components/LegalNotice';
 import { WindowChrome } from '../components/WindowChrome';
 
 type PermissionState = {
@@ -162,46 +163,46 @@ export function OnboardingView() {
       <div className="window-panel window-panel--flush">
         <div className="window-content overflow-y-auto overflow-x-hidden">
           <div className="flex min-h-full min-w-0 flex-col px-4 pb-4 pt-3">
-          <WindowChrome label="Setup" showMinimize={false} showZoom={false} />
+            <WindowChrome label="Setup" showMinimize={false} showZoom={false} />
 
-          <header className="border-b border-[#15231e]/6 pb-3 pt-1.5">
-            <div className="flex items-start gap-3">
-              <BrandMark />
-              <div className="min-w-0">
-                <h1 className="text-[2.75rem] font-[650] leading-[0.94] tracking-[-0.05em] text-[#16211b]">
-                  WhisperApp
-                </h1>
+            <header className="border-b border-[#15231e]/6 pb-3 pt-1.5">
+              <div className="flex items-start gap-3">
+                <BrandMark />
+                <div className="min-w-0">
+                  <h1 className="text-[2.75rem] font-[650] leading-[0.94] tracking-[-0.05em] text-[#16211b]">
+                    WhisperApp
+                  </h1>
+                </div>
               </div>
-            </div>
-          </header>
+            </header>
 
             <div className="flex-1 py-4">
-            <div className="mx-auto grid max-w-5xl gap-3 md:grid-cols-2">
-              <PermissionCard
-                kind="microphone"
-                title="Microphone Access"
-                description="Required to capture your voice before transcription starts."
-                actionLabel="Grant"
-                onAction={requestMicrophoneAccess}
-                ready={isMicrophoneGranted}
-                disabled={isMicrophoneGranted}
-              />
+              <div className="mx-auto grid max-w-5xl gap-3 md:grid-cols-2">
+                <PermissionCard
+                  kind="microphone"
+                  title="Microphone Access"
+                  description="Required to capture your voice before transcription starts."
+                  actionLabel="Grant"
+                  onAction={requestMicrophoneAccess}
+                  ready={isMicrophoneGranted}
+                  disabled={isMicrophoneGranted}
+                />
 
-              <PermissionCard
-                kind="accessibility"
-                title="Accessibility Access"
-                description="Required so the global hotkey can start recording while you work in any app."
-                actionLabel="Open Settings"
-                onAction={openAccessibilitySettings}
-                ready={isAccessibilityGranted}
-                disabled={isAccessibilityGranted}
-              />
-            </div>
+                <PermissionCard
+                  kind="accessibility"
+                  title="Accessibility Access"
+                  description="Required so the global hotkey can start recording while you work in any app."
+                  actionLabel="Open Settings"
+                  onAction={openAccessibilitySettings}
+                  ready={isAccessibilityGranted}
+                  disabled={isAccessibilityGranted}
+                />
+              </div>
 
               <section className="section-card mx-auto mt-3 max-w-5xl px-4 py-3.5">
                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div className="min-w-0">
-                  <p className="hero-kicker">Workflow</p>
+                    <p className="hero-kicker">Workflow</p>
                     <p className="mt-1.5 text-sm leading-5 text-[#4b5650]">
                       Hold F5 to record, release to transcribe, then WhisperApp pastes the final text back into your active app.
                     </p>
@@ -221,6 +222,8 @@ export function OnboardingView() {
                   </div>
                 </div>
               </section>
+
+              <LegalNotice className="mx-auto mt-3 max-w-5xl" />
             </div>
           </div>
         </div>

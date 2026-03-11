@@ -290,9 +290,6 @@ export function HistoryView() {
               <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex flex-wrap items-end gap-3">
                   <h1 className="view-title text-[2.25rem]">History</h1>
-                  <p className="pb-1 text-sm text-[#6b746f]">
-                    {history.length > 0 ? `${history.length} entries` : 'No entries'}
-                  </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 lg:max-w-[36rem] lg:justify-end">
                   <div className="flex flex-wrap items-center gap-2.5">
