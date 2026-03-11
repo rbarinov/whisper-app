@@ -180,20 +180,12 @@ jobs:
 
       - name: Create GitHub Release
         run: |
-          gh release create ${{ github.ref_name }} \
-            --title "WhisperApp ${{ github.ref_name }}" \
-            --notes "## Install WhisperApp ${{ github.ref_name }}
-
-          ### macOS
-          Download and open the .dmg file. Drag to Applications. Run: xattr -cr /Applications/WhisperApp.app
-
-          ### Windows
-          Download and run the .exe installer. Click 'More info' → 'Run anyway' if SmartScreen appears.
-
-          ### Linux
-          **AppImage**: chmod +x WhisperApp-*.AppImage && ./WhisperApp-*.AppImage
-          **deb**: sudo dpkg -i whisperapp_*.deb
-          **rpm**: sudo rpm -i whisperapp-*.rpm" \
-            $(find artifacts -type f | tr '\n' ' ')
+          # Collect all artifact files into an array (handles spaces in names)
+          mapfile -d '' FILES < <(find artifacts -type f -print0)
+          gh release create "$TAG" \
+            --title "WhisperApp $TAG" \
+            --generate-notes \
+            "${FILES[@]}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
