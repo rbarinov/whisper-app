@@ -4,7 +4,7 @@
   "description": "WhisperApp - Electron + React + Tailwind",
   "main": "dist/main/main/main.js",
   "homepage": "./",
-  "author": "OpenCode",
+  "author": "Roman Barinov <rbarinov@gmail.com>",
   "license": "MIT",
   "scripts": {
     "build": "webpack --mode production",
