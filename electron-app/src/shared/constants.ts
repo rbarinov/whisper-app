@@ -61,6 +61,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
     keyName: DEFAULT_HOTKEY_KEY_NAME,
   },
   llmPostProcessingEnabled: false,
+  llmApiBaseURL: '',
+  llmApiKey: '',
   llmModelName: DEFAULT_LLM_MODEL_NAME,
   llmSystemPrompt: DEFAULT_LLM_SYSTEM_PROMPT,
 };

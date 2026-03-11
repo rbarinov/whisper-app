@@ -35,6 +35,8 @@ export interface AppSettings {
   language: string;
   hotkeyConfig: HotkeyConfig;
   llmPostProcessingEnabled: boolean;
+  llmApiBaseURL: string;
+  llmApiKey: string;
   llmModelName: string;
   llmSystemPrompt: string;
 }
