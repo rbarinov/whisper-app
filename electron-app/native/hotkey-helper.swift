@@ -174,6 +174,15 @@ private final class HotkeyHelper {
     private func handleNormalKeyEvent(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
         let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
         let isAutoRepeat = event.getIntegerValueField(.keyboardEventAutorepeat) != 0
+        let currentTarget = stateQueue.sync { targetKeyCode }
+
+        // Consume auto-repeat events for the hotkey to prevent macOS
+        // from triggering dictation or other system shortcuts on long press.
+        if keyCode == currentTarget && isAutoRepeat {
+            return nil
+        }
+
+        // For non-auto-repeat events, skip emitting if it's a repeat
         if isAutoRepeat { return Unmanaged.passRetained(event) }
 
         if type == .keyDown {
@@ -182,10 +191,13 @@ private final class HotkeyHelper {
             emit(["type": "keyup", "keyCode": Int(keyCode)])
         }
 
-        if keyCode == Self.escapeKeyCode, type == .keyDown {
-            return Unmanaged.passRetained(event)
+        // Consume the hotkey event so macOS doesn't process it
+        // (prevents dictation prompt, Exposé triggers, etc.)
+        if keyCode == currentTarget {
+            return nil
         }
 
+        // Escape is always passed through (handled by the JS side)
         return Unmanaged.passRetained(event)
     }
 
