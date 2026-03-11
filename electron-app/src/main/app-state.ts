@@ -648,6 +648,16 @@ export class AppStateManager {
   }
 
   private broadcastOverlayUpdate(state: OverlayState): void {
+    // Cancel any pending dismiss timer when transitioning to an active state.
+    // Without this, a previous done/error/cancelled timer could fire and hide
+    // the overlay while recording/transcribing/processing is in progress.
+    if (state.type === 'recording' || state.type === 'transcribing' || state.type === 'processing') {
+      if (this.overlayDismissTimer) {
+        clearTimeout(this.overlayDismissTimer);
+        this.overlayDismissTimer = null;
+      }
+    }
+
     if (!this.overlayWindow || this.overlayWindow.isDestroyed()) {
       return;
     }
