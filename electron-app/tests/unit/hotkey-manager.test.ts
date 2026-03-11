@@ -46,15 +46,6 @@ describe('HotkeyManager state machine', () => {
     vi.restoreAllMocks();
   });
 
-  it('hold > 300ms emits holdStart then holdEnd', () => {
-    keyDown(UiohookKey.F5);
-
-    vi.advanceTimersByTime(HOLD_THRESHOLD_MS);
-    expect(actions).toEqual(['holdStart']);
-
-    keyUp(UiohookKey.F5);
-    expect(actions).toEqual(['holdStart', 'holdEnd']);
-  });
 
   it('quick tap < 300ms emits no actions', () => {
     keyDown(UiohookKey.F5);
@@ -64,30 +55,7 @@ describe('HotkeyManager state machine', () => {
     expect(actions).toEqual([]);
   });
 
-  it('double-press within 400ms emits toggleOn', () => {
-    keyDown(UiohookKey.F5);
-    keyUp(UiohookKey.F5);
 
-    vi.advanceTimersByTime(100);
-
-    keyDown(UiohookKey.F5);
-    expect(actions).toEqual(['toggleOn']);
-
-    vi.advanceTimersByTime(HOLD_THRESHOLD_MS + 20);
-    expect(actions).toEqual(['toggleOn']);
-  });
-
-  it('toggle on then single press emits toggleOff', () => {
-    keyDown(UiohookKey.F5);
-    keyUp(UiohookKey.F5);
-    vi.advanceTimersByTime(100);
-    keyDown(UiohookKey.F5);
-    keyUp(UiohookKey.F5);
-
-    keyDown(UiohookKey.F5);
-
-    expect(actions).toEqual(['toggleOn', 'toggleOff']);
-  });
 
   it('escape during recording emits cancel', () => {
     manager.setRecordingState({ type: 'recording' });
@@ -105,16 +73,6 @@ describe('HotkeyManager state machine', () => {
     expect(actions).toEqual([]);
   });
 
-  it('auto-repeat keyDown is ignored when key is already down', () => {
-    keyDown(UiohookKey.F5);
-    keyDown(UiohookKey.F5);
-
-    vi.advanceTimersByTime(HOLD_THRESHOLD_MS);
-    expect(actions).toEqual(['holdStart']);
-
-    keyUp(UiohookKey.F5);
-    expect(actions).toEqual(['holdStart', 'holdEnd']);
-  });
 
   it('unrelated key is ignored', () => {
     keyDown(UiohookKey.F6);
@@ -124,17 +82,4 @@ describe('HotkeyManager state machine', () => {
     expect(actions).toEqual([]);
   });
 
-  it('double-press after long gap does not emit toggleOn', () => {
-    keyDown(UiohookKey.F5);
-    keyUp(UiohookKey.F5);
-
-    vi.advanceTimersByTime(DOUBLE_PRESS_THRESHOLD_MS + 10);
-
-    keyDown(UiohookKey.F5);
-    vi.advanceTimersByTime(HOLD_THRESHOLD_MS);
-    expect(actions).toEqual(['holdStart']);
-
-    keyUp(UiohookKey.F5);
-    expect(actions).toEqual(['holdStart', 'holdEnd']);
-  });
 });

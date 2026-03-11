@@ -11,7 +11,7 @@ test.describe('history view', () => {
     });
   });
 
-  test('renders history heading', async ({ page }) => {
+  test('renders history title without the old subtitle', async ({ page }) => {
     await page.addInitScript(() => {
       const api = {
         startRecording: async () => undefined,
@@ -45,6 +45,7 @@ test.describe('history view', () => {
 
     await page.goto('index.html?view=history');
     await expect(page.getByRole('heading', { name: 'History' })).toBeVisible();
+    await expect(page.getByText('No transcriptions yet')).toBeVisible();
   });
 
   test('shows empty state message when history has no entries', async ({ page }) => {

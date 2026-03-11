@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { APP_LEGAL_NOTICE, APP_REPOSITORY_URL } from '../../src/shared/version';
 
 test.describe('settings view', () => {
   test.beforeEach(async ({ page }) => {
@@ -51,6 +52,7 @@ test.describe('settings view', () => {
         requestMicrophonePermission: async () => true,
         requestAccessibility: async () => ({ microphone: 'granted', accessibility: false }),
         openAccessibilitySettings: async () => undefined,
+        openExternalUrl: async () => undefined,
         onStateUpdate: () => () => undefined,
         onOverlayUpdate: () => () => undefined,
         onHotkeyCaptured: () => () => undefined,
@@ -85,6 +87,11 @@ test.describe('settings view', () => {
     await expect(page.getByLabel('Custom Base URL')).toHaveValue('');
     await expect(page.getByLabel('Custom API Key')).toHaveValue('');
     await expect(page.getByRole('heading', { name: 'Hotkey' })).toHaveCount(0);
+  });
+
+  test('renders legal notice', async ({ page }) => {
+    await expect(page.getByText(APP_LEGAL_NOTICE)).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Open GitHub repository' })).toHaveAttribute('href', APP_REPOSITORY_URL);
   });
 
   test('updates settings through saveSettings when edited', async ({ page }) => {

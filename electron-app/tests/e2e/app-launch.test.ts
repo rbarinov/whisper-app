@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { APP_LEGAL_NOTICE, APP_REPOSITORY_URL } from '../../src/shared/version';
 
 test.describe('renderer app launch', () => {
   test.beforeEach(async ({ page }) => {
@@ -50,6 +51,7 @@ test.describe('renderer app launch', () => {
         requestMicrophonePermission: async () => true,
         requestAccessibility: async () => ({ microphone: 'granted', accessibility: true }),
         openAccessibilitySettings: async () => undefined,
+        openExternalUrl: async () => undefined,
         onStateUpdate: (callback: (state: unknown) => void) => {
           listeners.push(callback);
           callback(initialState);
@@ -94,6 +96,14 @@ test.describe('renderer app launch', () => {
   test('switches to history view via query param', async ({ page }) => {
     await page.goto('index.html?view=history');
     await expect(page.getByRole('heading', { name: 'History' })).toBeVisible();
+    await expect(page.getByText('No transcriptions yet')).toBeVisible();
+  });
+
+  test('switches to onboarding view via query param', async ({ page }) => {
+    await page.goto('index.html?view=onboarding');
+    await expect(page.getByRole('heading', { name: 'WhisperApp' })).toBeVisible();
+    await expect(page.getByText(APP_LEGAL_NOTICE)).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Open GitHub repository' })).toHaveAttribute('href', APP_REPOSITORY_URL);
   });
 
   test('switches to overlay view via query param', async ({ page }) => {
