@@ -178,14 +178,21 @@ jobs:
       - name: List artifacts
         run: find artifacts -type f | head -50
 
-      - name: Create GitHub Release
+      - name: Upload to GitHub Release
         run: |
           # Collect all artifact files into an array (handles spaces in names)
           mapfile -d '' FILES < <(find artifacts -type f -print0)
-          gh release create "$TAG" \
-            --title "WhisperApp $TAG" \
-            --generate-notes \
-            "${FILES[@]}"
+          # Create release if it doesn't exist yet, or upload to existing
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "Release $TAG exists, uploading assets..."
+            gh release upload "$TAG" --clobber "${FILES[@]}"
+          else
+            echo "Creating release $TAG..."
+            gh release create "$TAG" \
+              --title "WhisperApp $TAG" \
+              --generate-notes \
+              "${FILES[@]}"
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.ref_name }}
