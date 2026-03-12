@@ -13,18 +13,6 @@ const DEFAULT_PERMISSIONS: PermissionState = {
   accessibility: false,
 };
 
-function BrandMark() {
-  return (
-    <div className="relative flex h-14 w-14 items-center justify-center rounded-[20px] border border-[#15231e]/10 bg-[#15231e] text-white shadow-[0_18px_32px_rgba(21,35,30,0.16)]">
-      <div className="absolute inset-2 rounded-[16px] border border-white/10" />
-      <div className="relative flex h-7 w-[18px] items-start justify-center rounded-full border border-white/70">
-        <div className="mt-1 h-3.5 w-2 rounded-full bg-white/85" />
-      </div>
-      <div className="absolute bottom-3.5 h-2 w-5 rounded-full bg-white/14" />
-    </div>
-  );
-}
-
 function PermissionIcon({ kind }: { kind: 'microphone' | 'accessibility' }) {
   if (kind === 'microphone') {
     return (
@@ -166,10 +154,13 @@ export function OnboardingView() {
             <WindowChrome label="Setup" showMinimize={false} showZoom={false} />
 
             <header className="border-b border-[#15231e]/6 pb-3 pt-1.5">
-              <div className="flex items-start gap-3">
-                <BrandMark />
+              <div className="flex items-center gap-3">
+                <img src="icon.png" alt="WhisperApp" className="h-14 w-14 rounded-[14px]" draggable={false} />
                 <div className="min-w-0">
-                  <h1 className="text-[2.75rem] font-[650] leading-[0.94] tracking-[-0.05em] text-[#16211b]">
+                  <h1
+                    className="text-[2.75rem] font-bold leading-[0.94] tracking-[-0.05em] text-[#16211b]"
+                    style={{ fontFamily: 'var(--font-display)' }}
+                  >
                     WhisperApp
                   </h1>
                 </div>

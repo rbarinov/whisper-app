@@ -33,6 +33,10 @@ module.exports = {
     new CopyPlugin({
       patterns: [
         {
+          from: 'assets/icon.png',
+          to: 'icon.png',
+        },
+        {
           from: 'src/renderer/audio-worklet-processor.js',
           to: 'audio-worklet-processor.js',
         },
