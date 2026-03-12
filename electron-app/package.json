@@ -1,6 +1,6 @@
 {
   "name": "whisperapp",
-  "version": "2.1.3",
+  "version": "2.1.4",
   "description": "WhisperApp - Electron + React + Tailwind",
   "main": "dist/main/main/main.js",
   "homepage": "./",
