@@ -4,8 +4,9 @@ import { Button } from '../components/Button';
 import { KeyCaptureButton } from '../components/KeyCaptureButton';
 import { LegalNotice } from '../components/LegalNotice';
 import { WindowChrome } from '../components/WindowChrome';
-import type { AppSettings } from '../../shared/types';
-import { DEFAULT_LLM_MODEL_NAME, DEFAULT_LLM_SYSTEM_PROMPT } from '../../shared/constants';
+import { formatHotkeyDisplay } from '../../shared/key-maps';
+import type { AppSettings, HotkeyConfig, HotkeyModifiers } from '../../shared/types';
+import { DEFAULT_LLM_MODEL_NAME, DEFAULT_LLM_SYSTEM_PROMPT, DEFAULT_SETTINGS } from '../../shared/constants';
 
 type PermissionState = {
   microphone: 'granted' | 'denied' | 'not-determined';
@@ -31,6 +32,30 @@ const LANGUAGE_OPTIONS = [
   { value: 'zh', label: 'Chinese' },
   { value: 'ja', label: 'Japanese' },
 ];
+
+function normalizeModifiers(modifiers?: HotkeyModifiers): Required<HotkeyModifiers> {
+  return {
+    ctrl: !!modifiers?.ctrl,
+    alt: !!modifiers?.alt,
+    shift: !!modifiers?.shift,
+    meta: !!modifiers?.meta,
+  };
+}
+
+function hotkeysConflict(a: HotkeyConfig, b: HotkeyConfig): boolean {
+  if (a.keyCode !== b.keyCode) {
+    return false;
+  }
+
+  const left = normalizeModifiers(a.modifiers);
+  const right = normalizeModifiers(b.modifiers);
+  return (
+    left.ctrl === right.ctrl &&
+    left.alt === right.alt &&
+    left.shift === right.shift &&
+    left.meta === right.meta
+  );
+}
 
 function SettingsField({
   label,
@@ -120,42 +145,65 @@ export function SettingsView() {
     await refreshPermissions();
   };
 
-  const handleRecordKeyCapture = useCallback((keyCode: number, keyName: string) => {
+  const handleRecordKeyCapture = useCallback((keyCode: number, keyName: string, modifiers: Required<HotkeyModifiers>) => {
     if (!settings) {
       return;
     }
 
+    const nextHotkey: HotkeyConfig = {
+      keyCode,
+      keyName,
+      modifiers,
+    };
+
     setHotkeyError(null);
-    if (keyCode === settings.cancelKeyConfig.keyCode) {
+    if (hotkeysConflict(nextHotkey, settings.cancelKeyConfig)) {
       setHotkeyError('Record and Cancel keys must be different.');
       return;
     }
 
     save({
       ...settings,
-      hotkeyConfig: {
-        keyCode,
-        keyName,
-      },
+      hotkeyConfig: nextHotkey,
     });
   }, [save, settings]);
 
-  const handleCancelKeyCapture = useCallback((keyCode: number, keyName: string) => {
+  const handleCancelKeyCapture = useCallback((keyCode: number, keyName: string, modifiers: Required<HotkeyModifiers>) => {
     if (!settings) {
       return;
     }
 
+    const nextCancelKey: HotkeyConfig = {
+      keyCode,
+      keyName,
+      modifiers,
+    };
+
     setHotkeyError(null);
-    if (keyCode === settings.hotkeyConfig.keyCode) {
+    if (hotkeysConflict(nextCancelKey, settings.hotkeyConfig)) {
       setHotkeyError('Record and Cancel keys must be different.');
       return;
     }
 
     save({
       ...settings,
+      cancelKeyConfig: nextCancelKey,
+    });
+  }, [save, settings]);
+
+  const resetHotkeysToDefault = useCallback(() => {
+    if (!settings) {
+      return;
+    }
+
+    setHotkeyError(null);
+    save({
+      ...settings,
+      hotkeyConfig: {
+        ...DEFAULT_SETTINGS.hotkeyConfig,
+      },
       cancelKeyConfig: {
-        keyCode,
-        keyName,
+        ...DEFAULT_SETTINGS.cancelKeyConfig,
       },
     });
   }, [save, settings]);
@@ -297,19 +345,28 @@ export function SettingsView() {
 
                 <section className="section-card p-3.5 min-[980px]:col-span-2">
                   <div className="mb-2.5">
-                    <h2 className="text-[18px] font-semibold tracking-[-0.02em] text-[#16211b]">Hotkeys</h2>
-                    <p className="mt-1 text-sm leading-5 text-[#4b5650]">Configure separate keys for recording and canceling.</p>
+                    <div className="flex items-center justify-between gap-4">
+                      <h2 className="text-[18px] font-semibold tracking-[-0.02em] text-[#16211b]">Hotkeys</h2>
+                      <button
+                        type="button"
+                        className="action-link"
+                        onClick={resetHotkeysToDefault}
+                      >
+                        Reset to Default
+                      </button>
+                    </div>
+                    <p className="mt-1 text-sm leading-5 text-[#4b5650]">Configure separate key combinations for recording and canceling.</p>
                   </div>
 
                   <div className="space-y-2.5">
                     <KeyCaptureButton
                       label="Record"
-                      keyName={settings.hotkeyConfig.keyName}
+                      keyName={formatHotkeyDisplay(settings.hotkeyConfig.keyName, settings.hotkeyConfig.modifiers)}
                       onCapture={handleRecordKeyCapture}
                     />
                     <KeyCaptureButton
                       label="Cancel"
-                      keyName={settings.cancelKeyConfig.keyName}
+                      keyName={formatHotkeyDisplay(settings.cancelKeyConfig.keyName, settings.cancelKeyConfig.modifiers)}
                       onCapture={handleCancelKeyCapture}
                     />
                     {hotkeyError ? <p className="text-xs font-semibold text-[#b5402f]">{hotkeyError}</p> : null}

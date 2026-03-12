@@ -78,7 +78,12 @@ export class AppStateManager {
   constructor() {
     this.settings = loadSettings() ?? DEFAULT_SETTINGS;
     this.history = loadHistory();
-    this.hotkeyManager = new HotkeyManager(this.settings.hotkeyConfig.keyCode, this.settings.cancelKeyConfig.keyCode);
+    this.hotkeyManager = new HotkeyManager(
+      this.settings.hotkeyConfig.keyCode,
+      this.settings.cancelKeyConfig.keyCode,
+      this.settings.hotkeyConfig.modifiers,
+      this.settings.cancelKeyConfig.modifiers
+    );
     this.hotkeyManager.setActionCallback((action) => this.handleHotkeyAction(action));
   }
   setMainWindow(win: BrowserWindow): void {
@@ -91,8 +96,8 @@ export class AppStateManager {
     const permissionSnapshot = this.checkPermissions();
     this.isMicrophoneGranted = permissionSnapshot.microphone === 'granted';
 
-    this.hotkeyManager.setHotkey(this.settings.hotkeyConfig.keyCode);
-    this.hotkeyManager.setCancelKey(this.settings.cancelKeyConfig.keyCode);
+    this.hotkeyManager.setHotkey(this.settings.hotkeyConfig.keyCode, this.settings.hotkeyConfig.modifiers);
+    this.hotkeyManager.setCancelKey(this.settings.cancelKeyConfig.keyCode, this.settings.cancelKeyConfig.modifiers);
     this.applyRecordingState(this.recordingState);
     if (options?.startHotkeyManager !== false) {
       this.hotkeyManager.start();
@@ -288,8 +293,8 @@ export class AppStateManager {
   updateSettings(settings: AppSettings): void {
     this.settings = settings;
     saveSettings(settings);
-    this.hotkeyManager.setHotkey(settings.hotkeyConfig.keyCode);
-    this.hotkeyManager.setCancelKey(settings.cancelKeyConfig.keyCode);
+    this.hotkeyManager.setHotkey(settings.hotkeyConfig.keyCode, settings.hotkeyConfig.modifiers);
+    this.hotkeyManager.setCancelKey(settings.cancelKeyConfig.keyCode, settings.cancelKeyConfig.modifiers);
     this.broadcastStateUpdate();
   }
 

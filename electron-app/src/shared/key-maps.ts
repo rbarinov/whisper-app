@@ -1,3 +1,5 @@
+import type { HotkeyModifiers } from './types';
+
 export const DOM_CODE_TO_MAC_KEYCODE: Record<string, number> = {
   Escape: 53,
   Space: 49,
@@ -236,3 +238,19 @@ export const MODIFIER_ONLY_DOM_CODES = new Set<string>([
   'MetaLeft',
   'MetaRight',
 ]);
+
+export function formatHotkeyDisplay(keyName: string, modifiers?: HotkeyModifiers): string {
+  const isMac =
+    typeof navigator !== 'undefined'
+      ? navigator.userAgent.includes('Mac')
+      : typeof process !== 'undefined' && process.platform === 'darwin';
+
+  const parts: string[] = [];
+  if (modifiers?.ctrl) parts.push(isMac ? '⌃' : 'Ctrl');
+  if (modifiers?.alt) parts.push(isMac ? '⌥' : 'Alt');
+  if (modifiers?.shift) parts.push(isMac ? '⇧' : 'Shift');
+  if (modifiers?.meta) parts.push(isMac ? '⌘' : 'Super');
+  parts.push(keyName);
+
+  return isMac ? parts.join('') : parts.join('+');
+}

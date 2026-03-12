@@ -6,7 +6,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { app } from 'electron';
-import type { AppSettings } from '../../shared/types';
+import type { AppSettings, HotkeyModifiers } from '../../shared/types';
 import { DEFAULT_SETTINGS } from '../../shared/constants';
 
 /**
@@ -107,6 +107,26 @@ function buildDefaultSettingsForPlatform(): AppSettings {
   };
 }
 
+function normalizeModifiers(modifiers: unknown): HotkeyModifiers | undefined {
+  if (!modifiers || typeof modifiers !== 'object') {
+    return undefined;
+  }
+
+  const source = modifiers as Record<string, unknown>;
+  const normalized: HotkeyModifiers = {
+    ctrl: !!source.ctrl,
+    alt: !!source.alt,
+    shift: !!source.shift,
+    meta: !!source.meta,
+  };
+
+  if (!normalized.ctrl && !normalized.alt && !normalized.shift && !normalized.meta) {
+    return undefined;
+  }
+
+  return normalized;
+}
+
 /**
  * Get the path where settings.json should be stored.
  * Uses app.getPath('userData') for platform-specific app data directory.
@@ -141,10 +161,12 @@ export function loadSettings(): AppSettings {
       hotkeyConfig: {
         keyCode: normalizeHotkeyCode(fileSettings.hotkeyConfig?.keyCode, fileSettings.hotkeyConfig?.keyName ?? DEFAULT_SETTINGS.hotkeyConfig.keyName),
         keyName: fileSettings.hotkeyConfig?.keyName ?? DEFAULT_SETTINGS.hotkeyConfig.keyName,
+        modifiers: normalizeModifiers(fileSettings.hotkeyConfig?.modifiers),
       },
       cancelKeyConfig: {
         keyCode: normalizeCancelKeyCode(fileSettings.cancelKeyConfig?.keyCode, fileSettings.cancelKeyConfig?.keyName ?? DEFAULT_SETTINGS.cancelKeyConfig.keyName),
         keyName: fileSettings.cancelKeyConfig?.keyName ?? DEFAULT_SETTINGS.cancelKeyConfig.keyName,
+        modifiers: normalizeModifiers(fileSettings.cancelKeyConfig?.modifiers),
       },
       llmPostProcessingEnabled: fileSettings.llmPostProcessingEnabled ?? DEFAULT_SETTINGS.llmPostProcessingEnabled,
       llmApiBaseURL: fileSettings.llmApiBaseURL ?? DEFAULT_SETTINGS.llmApiBaseURL,

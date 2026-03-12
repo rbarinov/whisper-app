@@ -90,10 +90,12 @@ describe('Settings Service', () => {
         hotkeyConfig: {
           keyCode: 49,
           keyName: 'F7',
+          modifiers: { ctrl: true, alt: false, shift: true, meta: false },
         },
         cancelKeyConfig: {
           keyCode: 53,
           keyName: 'Escape',
+          modifiers: undefined,
         },
         llmPostProcessingEnabled: true,
         llmApiBaseURL: 'https://llm.custom.api.com',
@@ -180,6 +182,31 @@ describe('Settings Service', () => {
       const loaded = loadSettings();
       expect(loaded.hotkeyConfig.keyCode).toBe(expectedKeyCode(42, DEFAULT_SETTINGS.hotkeyConfig.keyName));
       expect(loaded.hotkeyConfig.keyName).toBe(DEFAULT_SETTINGS.hotkeyConfig.keyName);
+      expect(loaded.hotkeyConfig.modifiers).toBeUndefined();
+    });
+
+    it('should load hotkey modifiers when present', () => {
+      const settingsPath = getSettingsPath();
+      fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
+      fs.writeFileSync(
+        settingsPath,
+        JSON.stringify({
+          hotkeyConfig: {
+            keyCode: 63,
+            keyName: 'F5',
+            modifiers: { ctrl: true, shift: true },
+          },
+          cancelKeyConfig: {
+            keyCode: 1,
+            keyName: 'Escape',
+            modifiers: { alt: true },
+          },
+        })
+      );
+
+      const loaded = loadSettings();
+      expect(loaded.hotkeyConfig.modifiers).toEqual({ ctrl: true, alt: false, shift: true, meta: false });
+      expect(loaded.cancelKeyConfig.modifiers).toEqual({ ctrl: false, alt: true, shift: false, meta: false });
     });
   });
 
@@ -223,10 +250,12 @@ describe('Settings Service', () => {
         hotkeyConfig: {
           keyCode: 100,
           keyName: 'F10',
+          modifiers: { ctrl: true, alt: true, shift: false, meta: false },
         },
         cancelKeyConfig: {
           keyCode: 53,
           keyName: 'Escape',
+          modifiers: { ctrl: false, alt: false, shift: true, meta: false },
         },
         llmPostProcessingEnabled: true,
         llmApiBaseURL: 'https://llm.test.api.com',
@@ -343,10 +372,12 @@ describe('Settings Service', () => {
         hotkeyConfig: {
           keyCode: 64, // UiohookKey.F6
           keyName: 'F6',
+          modifiers: { ctrl: false, alt: false, shift: true, meta: false },
         },
         cancelKeyConfig: {
           keyCode: 53,
           keyName: 'Escape',
+          modifiers: undefined,
         },
         llmPostProcessingEnabled: true,
         llmApiBaseURL: 'https://integration.llm.test.com',

@@ -139,6 +139,12 @@ describe('AppStateManager', () => {
       hotkeyConfig: {
         keyCode: 63,
         keyName: 'F5',
+        modifiers: undefined,
+      },
+      cancelKeyConfig: {
+        keyCode: 1,
+        keyName: 'Escape',
+        modifiers: undefined,
       },
       llmPostProcessingEnabled: false,
       llmModelName: 'gpt-oss-20b',
@@ -275,6 +281,12 @@ describe('AppStateManager', () => {
       hotkeyConfig: {
         keyCode: 63,
         keyName: 'F5',
+        modifiers: { ctrl: true, alt: false, shift: false, meta: false },
+      },
+      cancelKeyConfig: {
+        keyCode: 1,
+        keyName: 'Escape',
+        modifiers: undefined,
       },
       llmPostProcessingEnabled: true,
       llmModelName: 'gpt-oss-20b',
@@ -342,6 +354,12 @@ describe('AppStateManager', () => {
       hotkeyConfig: {
         keyCode: 63,
         keyName: 'F5',
+        modifiers: { ctrl: true, alt: false, shift: false, meta: false },
+      },
+      cancelKeyConfig: {
+        keyCode: 1,
+        keyName: 'Escape',
+        modifiers: undefined,
       },
       llmPostProcessingEnabled: true,
       llmApiBaseURL: 'https://llm.example.com',
@@ -381,6 +399,12 @@ describe('AppStateManager', () => {
       hotkeyConfig: {
         keyCode: 63,
         keyName: 'F5',
+        modifiers: { ctrl: true, alt: false, shift: false, meta: false },
+      },
+      cancelKeyConfig: {
+        keyCode: 1,
+        keyName: 'Escape',
+        modifiers: undefined,
       },
       llmPostProcessingEnabled: true,
       llmModelName: 'gpt-oss-20b',

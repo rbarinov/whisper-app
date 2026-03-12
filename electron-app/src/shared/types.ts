@@ -12,6 +12,13 @@ export type RecordingState =
 
 export type TranscriptionStatus = 'transcribing' | 'successful' | 'failed' | 'cancelled';
 
+export interface HotkeyModifiers {
+  ctrl?: boolean;
+  alt?: boolean;
+  shift?: boolean;
+  meta?: boolean;
+}
+
 export interface TranscriptionEntry {
   id: string; // UUID string
   timestamp: string; // ISO 8601
@@ -26,6 +33,7 @@ export interface TranscriptionEntry {
 export interface HotkeyConfig {
   keyCode: number;
   keyName: string;
+  modifiers?: HotkeyModifiers;
 }
 
 export interface AppSettings {

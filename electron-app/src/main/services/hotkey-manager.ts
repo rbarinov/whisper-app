@@ -4,11 +4,41 @@ import {
   DOUBLE_PRESS_THRESHOLD_MS,
   HOLD_THRESHOLD_MS,
 } from '../../shared/constants';
-import type { HotkeyAction, RecordingState } from '../../shared/types';
+import type { HotkeyAction, HotkeyModifiers, RecordingState } from '../../shared/types';
 import { HotkeyBridge } from './hotkey-bridge';
 
 type HotkeyActionCallback = (action: HotkeyAction) => void;
 type RecordingStateType = RecordingState['type'];
+type ModifierState = Required<HotkeyModifiers>;
+
+const EMPTY_MODIFIERS: ModifierState = {
+  ctrl: false,
+  alt: false,
+  shift: false,
+  meta: false,
+};
+
+const MAC_MODIFIER_KEYS: Record<number, keyof ModifierState> = {
+  54: 'meta',
+  55: 'meta',
+  56: 'shift',
+  60: 'shift',
+  58: 'alt',
+  61: 'alt',
+  59: 'ctrl',
+  62: 'ctrl',
+};
+
+const UIOHOOK_MODIFIER_KEYS: Record<number, keyof ModifierState> = {
+  29: 'ctrl',
+  3613: 'ctrl',
+  56: 'alt',
+  3640: 'alt',
+  42: 'shift',
+  54: 'shift',
+  3675: 'meta',
+  3676: 'meta',
+};
 
 const IS_DARWIN = process.platform === 'darwin';
 const IS_TEST_ENV =
@@ -36,24 +66,57 @@ export class HotkeyManager {
   private lastKeyDownTime = 0;
   private holdTimer: NodeJS.Timeout | null = null;
   private currentKeyCode = DEFAULT_HOTKEY_KEY_CODE;
+  private currentHotkeyModifiers: ModifierState = { ...EMPTY_MODIFIERS };
   private activeRecordingState: RecordingStateType = 'idle';
 
   private onAction: HotkeyActionCallback | null = null;
 
   private isStarted = false;
   private readonly bridge = IS_DARWIN && !IS_TEST_ENV ? new HotkeyBridge() : null;
-  private readonly keyDownListener = (event: { keycode: number }) => {
-    this.handleKeyDown(event.keycode);
+  private cancelKeyModifiers: ModifierState = { ...EMPTY_MODIFIERS };
+  private activeModifiers: ModifierState = { ...EMPTY_MODIFIERS };
+
+  private readonly keyDownListener = (event: {
+    keycode: number;
+    ctrlKey?: boolean;
+    altKey?: boolean;
+    shiftKey?: boolean;
+    metaKey?: boolean;
+  }) => {
+    this.handleKeyDown(event.keycode, {
+      ctrl: !!event.ctrlKey,
+      alt: !!event.altKey,
+      shift: !!event.shiftKey,
+      meta: !!event.metaKey,
+    });
   };
-  private readonly keyUpListener = (event: { keycode: number }) => {
-    this.handleKeyUp(event.keycode);
+  private readonly keyUpListener = (event: {
+    keycode: number;
+    ctrlKey?: boolean;
+    altKey?: boolean;
+    shiftKey?: boolean;
+    metaKey?: boolean;
+  }) => {
+    this.handleKeyUp(event.keycode, {
+      ctrl: !!event.ctrlKey,
+      alt: !!event.altKey,
+      shift: !!event.shiftKey,
+      meta: !!event.metaKey,
+    });
   };
 
   // Escape keyCode — macOS virtual (53) vs uiohook (1)
   private cancelKeyCode: number;
 
-  constructor(initialHotkeyKeyCode: number = DEFAULT_HOTKEY_KEY_CODE, initialCancelKeyCode: number = DEFAULT_CANCEL_KEY_CODE) {
+  constructor(
+    initialHotkeyKeyCode: number = DEFAULT_HOTKEY_KEY_CODE,
+    initialCancelKeyCode: number = DEFAULT_CANCEL_KEY_CODE,
+    initialHotkeyModifiers?: HotkeyModifiers,
+    initialCancelKeyModifiers?: HotkeyModifiers
+  ) {
     this.currentKeyCode = initialHotkeyKeyCode;
+    this.currentHotkeyModifiers = this.normalizeModifiers(initialHotkeyModifiers);
+    this.cancelKeyModifiers = this.normalizeModifiers(initialCancelKeyModifiers);
 
     if (this.bridge) {
       // macOS: use native bridge, keyCodes are macOS virtual keyCodes
@@ -89,11 +152,12 @@ export class HotkeyManager {
     this.activeRecordingState = state.type;
   }
 
-  setHotkey(keyCode: number): void {
+  setHotkey(keyCode: number, modifiers?: HotkeyModifiers): void {
     // keyCode from settings is always macOS virtual keyCode
     // On macOS bridge: use as-is
     // On uiohook: already mapped by settings service
     this.currentKeyCode = keyCode;
+    this.currentHotkeyModifiers = this.normalizeModifiers(modifiers);
 
     if (this.keyIsDown) {
       this.keyIsDown = false;
@@ -113,8 +177,9 @@ export class HotkeyManager {
     }
   }
 
-  setCancelKey(keyCode: number): void {
+  setCancelKey(keyCode: number, modifiers?: HotkeyModifiers): void {
     this.cancelKeyCode = keyCode;
+    this.cancelKeyModifiers = this.normalizeModifiers(modifiers);
   }
 
   start(): void {
@@ -150,6 +215,7 @@ export class HotkeyManager {
     this.isStarted = false;
 
     this.keyIsDown = false;
+    this.activeModifiers = { ...EMPTY_MODIFIERS };
     if (this.holdTimer) {
       clearTimeout(this.holdTimer);
       this.holdTimer = null;
@@ -160,12 +226,24 @@ export class HotkeyManager {
     this.onAction?.(action);
   }
 
-  private handleKeyDown(keyCode: number): void {
+  private handleKeyDown(keyCode: number, currentModifiers?: ModifierState): void {
+    this.syncActiveModifiersFromEvent(currentModifiers);
+
+    if (this.updateModifierKeyState(keyCode, true)) {
+      return;
+    }
+
     if (keyCode !== this.currentKeyCode && keyCode !== this.cancelKeyCode) {
       return;
     }
 
+    const modifiers = currentModifiers ?? this.activeModifiers;
+
     if (keyCode === this.currentKeyCode) {
+      if (!this.modifiersMatch(this.currentHotkeyModifiers, modifiers)) {
+        return;
+      }
+
       if (this.keyIsDown) {
         return;
       }
@@ -207,12 +285,22 @@ export class HotkeyManager {
       return;
     }
 
-    if (keyCode === this.cancelKeyCode && this.activeRecordingState !== 'idle') {
+    if (
+      keyCode === this.cancelKeyCode &&
+      this.activeRecordingState !== 'idle' &&
+      this.modifiersMatch(this.cancelKeyModifiers, modifiers)
+    ) {
       this.emitAction('cancel');
     }
   }
 
-  private handleKeyUp(keyCode: number): void {
+  private handleKeyUp(keyCode: number, currentModifiers?: ModifierState): void {
+    this.syncActiveModifiersFromEvent(currentModifiers);
+
+    if (this.updateModifierKeyState(keyCode, false)) {
+      return;
+    }
+
     if (keyCode !== this.currentKeyCode) {
       return;
     }
@@ -231,5 +319,55 @@ export class HotkeyManager {
     }
 
     this.holdTimer = null;
+  }
+
+  private normalizeModifiers(modifiers?: HotkeyModifiers): ModifierState {
+    return {
+      ctrl: !!modifiers?.ctrl,
+      alt: !!modifiers?.alt,
+      shift: !!modifiers?.shift,
+      meta: !!modifiers?.meta,
+    };
+  }
+
+  private modifiersMatch(required: ModifierState | undefined, current: ModifierState): boolean {
+    if (!required) {
+      return !current.ctrl && !current.alt && !current.shift && !current.meta;
+    }
+
+    return (
+      !!required.ctrl === current.ctrl &&
+      !!required.alt === current.alt &&
+      !!required.shift === current.shift &&
+      !!required.meta === current.meta
+    );
+  }
+
+  private syncActiveModifiersFromEvent(modifiers?: ModifierState): void {
+    if (!modifiers) {
+      return;
+    }
+
+    this.activeModifiers = { ...modifiers };
+  }
+
+  private updateModifierKeyState(keyCode: number, isDown: boolean): boolean {
+    const modifier = this.resolveModifierKey(keyCode);
+    if (!modifier) {
+      return false;
+    }
+
+    this.activeModifiers = {
+      ...this.activeModifiers,
+      [modifier]: isDown,
+    };
+    return true;
+  }
+
+  private resolveModifierKey(keyCode: number): keyof ModifierState | undefined {
+    if (this.bridge) {
+      return MAC_MODIFIER_KEYS[keyCode];
+    }
+    return UIOHOOK_MODIFIER_KEYS[keyCode];
   }
 }

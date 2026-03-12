@@ -5,11 +5,12 @@ import {
   DOM_CODE_TO_UIOHOOK_KEYCODE,
   MODIFIER_ONLY_DOM_CODES,
 } from '../../shared/key-maps';
+import type { HotkeyModifiers } from '../../shared/types';
 
 interface KeyCaptureButtonProps {
   label: string;
   keyName: string;
-  onCapture: (keyCode: number, keyName: string) => void;
+  onCapture: (keyCode: number, keyName: string, modifiers: Required<HotkeyModifiers>) => void;
 }
 
 const CAPTURE_TIMEOUT_MS = 5000;
@@ -68,7 +69,12 @@ export function KeyCaptureButton({ label, keyName, onCapture }: KeyCaptureButton
       }
 
       const resolvedName = resolveKeyName(event.code, event.key);
-      onCapture(resolvedCode, resolvedName);
+      onCapture(resolvedCode, resolvedName, {
+        ctrl: event.ctrlKey,
+        alt: event.altKey,
+        shift: event.shiftKey,
+        meta: event.metaKey,
+      });
       stopCapture();
     };
 
@@ -88,9 +94,9 @@ export function KeyCaptureButton({ label, keyName, onCapture }: KeyCaptureButton
 
   const helperText = useMemo(() => {
     if (isCapturing) {
-      return 'Press a key...';
+      return 'Press a key combination...';
     }
-    return keyName;
+    return `Current: ${keyName}`;
   }, [isCapturing, keyName]);
 
   return (
