@@ -33,6 +33,17 @@ jobs:
       - run: npm ci
         working-directory: electron-app
 
+      - name: Build native keytap addon for macOS
+        working-directory: electron-app/native/keytap
+        run: |
+          export npm_config_target=$(node -p "require('../../node_modules/electron/package.json').version")
+          echo "Building keytap for Electron $npm_config_target"
+          npm install && npx node-gyp rebuild --release
+        env:
+          npm_config_arch: arm64
+          npm_config_disturl: https://electronjs.org/headers
+          npm_config_runtime: electron
+
       - run: npm run build:main
         working-directory: electron-app
 
