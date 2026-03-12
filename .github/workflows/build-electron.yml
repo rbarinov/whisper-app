@@ -8,7 +8,14 @@ on:
 
 jobs:
   build-macos:
-    runs-on: macos-14
+    strategy:
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-14
+          - arch: x64
+            runner: macos-13
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
 
@@ -35,10 +42,10 @@ jobs:
         working-directory: electron-app/native/keytap
         run: |
           export npm_config_target=$(node -p "require('../../node_modules/electron/package.json').version")
-          echo "Building keytap for Electron $npm_config_target"
+          echo "Building keytap for Electron $npm_config_target (${{ matrix.arch }})"
           npm install && npx node-gyp rebuild --release
         env:
-          npm_config_arch: arm64
+          npm_config_arch: ${{ matrix.arch }}
           npm_config_disturl: https://electronjs.org/headers
           npm_config_runtime: electron
 
@@ -51,7 +58,7 @@ jobs:
       - run: npm test
         working-directory: electron-app
 
-      - run: npm run make
+      - run: npm run make -- --${{ matrix.arch }}
         working-directory: electron-app
         env:
           CSC_LINK: ${{ secrets.CSC_LINK }}
@@ -60,7 +67,7 @@ jobs:
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: WhisperApp-macOS
+          name: WhisperApp-macOS-${{ matrix.arch }}
           path: |
             electron-app/release/*.dmg
             electron-app/release/*.zip

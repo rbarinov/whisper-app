@@ -22,14 +22,12 @@ extraResources:
       - "**/*"
 mac:
   target:
-    - target: dmg
-      arch:
-        - arm64
-    - target: zip
-      arch:
-        - arm64
+    - dmg
+    - zip
+  # arch is controlled by CI flags (--arm64 / --x64)
   category: public.app-category.utilities
   # entitlements auto-discovered from buildResources (assets/entitlements.mac.plist)
+  artifactName: '${productName}-${version}-${arch}.${ext}'
   icon: assets/icon.icns
 win:
   target:
