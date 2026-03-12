@@ -122,12 +122,12 @@ export class HotkeyManager {
       // macOS: use native bridge, keyCodes are macOS virtual keyCodes
       this.cancelKeyCode = initialCancelKeyCode;
 
-      this.bridge.onKeyDown((keyCode) => {
-        this.handleKeyDown(keyCode);
+      this.bridge.onKeyDown((keyCode, modifiers) => {
+        this.handleKeyDown(keyCode, modifiers);
       });
 
-      this.bridge.onKeyUp((keyCode) => {
-        this.handleKeyUp(keyCode);
+      this.bridge.onKeyUp((keyCode, modifiers) => {
+        this.handleKeyUp(keyCode, modifiers);
       });
 
       this.bridge.onMediaKey((_nxKeyType, isDown) => {

@@ -11,14 +11,28 @@
 import * as path from 'path';
 import * as fs from 'fs';
 
+type KeytapModifiers = {
+  ctrlKey?: boolean;
+  altKey?: boolean;
+  shiftKey?: boolean;
+  metaKey?: boolean;
+};
+
 type KeytapEvent =
-  | { type: 'keydown'; keyCode: number }
-  | { type: 'keyup'; keyCode: number }
+  | { type: 'keydown'; keyCode: number } & KeytapModifiers
+  | { type: 'keyup'; keyCode: number } & KeytapModifiers
   | { type: 'media'; nxKeyType: number; isDown: boolean }
   | { type: 'ready' }
   | { type: 'error'; message: string };
 
-type KeyCallback = (keyCode: number) => void;
+export type KeyModifiers = {
+  ctrl: boolean;
+  alt: boolean;
+  shift: boolean;
+  meta: boolean;
+};
+
+type KeyCallback = (keyCode: number, modifiers: KeyModifiers) => void;
 type MediaCallback = (nxKeyType: number, isDown: boolean) => void;
 
 const F_KEY_TO_NX_KEY_TYPE: Record<number, number> = {
@@ -151,12 +165,24 @@ export class HotkeyBridge {
     }
 
     if (event.type === 'keydown') {
-      this.keyDownCallback?.(event.keyCode);
+      const mods: KeyModifiers = {
+        ctrl: !!event.ctrlKey,
+        alt: !!event.altKey,
+        shift: !!event.shiftKey,
+        meta: !!event.metaKey,
+      };
+      this.keyDownCallback?.(event.keyCode, mods);
       return;
     }
 
     if (event.type === 'keyup') {
-      this.keyUpCallback?.(event.keyCode);
+      const mods: KeyModifiers = {
+        ctrl: !!event.ctrlKey,
+        alt: !!event.altKey,
+        shift: !!event.shiftKey,
+        meta: !!event.metaKey,
+      };
+      this.keyUpCallback?.(event.keyCode, mods);
       return;
     }
 

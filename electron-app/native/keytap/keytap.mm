@@ -38,6 +38,9 @@ static std::atomic<int> targetKeyCode{-1};
 static std::atomic<int> targetNXKeyType{-1};
 static const int ESCAPE_KEYCODE = 53;
 
+// Track previous modifier flags to detect press/release
+static CGEventFlags previousModifierFlags = 0;
+
 // ── Event structs passed to JS thread ───────────────────────────────
 
 enum class EventKind { KeyDown, KeyUp, Media };
@@ -46,6 +49,10 @@ struct KeytapEvent {
   EventKind kind;
   int code;       // keyCode or nxKeyType
   bool isDown;    // only meaningful for Media
+  bool ctrlKey;
+  bool altKey;
+  bool shiftKey;
+  bool metaKey;
 };
 
 // ── CGEvent tap callback ────────────────────────────────────────────
@@ -85,7 +92,7 @@ static CGEventRef eventTapCallback(
       if (isRepeat) return event;
 
       if (isDown || isUp) {
-        auto *ev = new KeytapEvent{EventKind::Media, mediaKeyCode, isDown};
+        auto *ev = new KeytapEvent{EventKind::Media, mediaKeyCode, isDown, false, false, false, false};
         tsfn.NonBlockingCall(ev, [](Napi::Env env, Napi::Function jsCallback, KeytapEvent *ev) {
           auto obj = Napi::Object::New(env);
           obj.Set("type", "media");
@@ -110,12 +117,22 @@ static CGEventRef eventTapCallback(
     int64_t autoRepeat = CGEventGetIntegerValueField(event, kCGKeyboardEventAutorepeat);
     if (autoRepeat) return event;
 
+    CGEventFlags flags = CGEventGetFlags(event);
+    bool ctrl  = (flags & kCGEventFlagMaskControl) != 0;
+    bool alt   = (flags & kCGEventFlagMaskAlternate) != 0;
+    bool shift = (flags & kCGEventFlagMaskShift) != 0;
+    bool meta  = (flags & kCGEventFlagMaskCommand) != 0;
+
     EventKind kind = (type == kCGEventKeyDown) ? EventKind::KeyDown : EventKind::KeyUp;
-    auto *ev = new KeytapEvent{kind, (int)keyCode, false};
+    auto *ev = new KeytapEvent{kind, (int)keyCode, false, ctrl, alt, shift, meta};
     tsfn.NonBlockingCall(ev, [](Napi::Env env, Napi::Function jsCallback, KeytapEvent *ev) {
       auto obj = Napi::Object::New(env);
       obj.Set("type", ev->kind == EventKind::KeyDown ? "keydown" : "keyup");
       obj.Set("keyCode", ev->code);
+      obj.Set("ctrlKey", ev->ctrlKey);
+      obj.Set("altKey", ev->altKey);
+      obj.Set("shiftKey", ev->shiftKey);
+      obj.Set("metaKey", ev->metaKey);
       jsCallback.Call({obj});
       delete ev;
     });
@@ -126,6 +143,44 @@ static CGEventRef eventTapCallback(
     if (target >= 0 && (int)keyCode == target && (int)keyCode != ESCAPE_KEYCODE) {
       return NULL;
     }
+
+    return event;
+  }
+
+  // PATH 3: Modifier key changes (kCGEventFlagsChanged)
+  // macOS sends this instead of keyDown/keyUp for modifier keys.
+  // We emit keydown/keyup so the JS side can track modifier state.
+  if (type == kCGEventFlagsChanged) {
+    int64_t keyCode = CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode);
+    CGEventFlags flags = CGEventGetFlags(event);
+
+    // Determine press vs release by comparing with previous flags
+    CGEventFlags modifierMask = kCGEventFlagMaskControl | kCGEventFlagMaskAlternate |
+                                kCGEventFlagMaskShift | kCGEventFlagMaskCommand;
+    CGEventFlags newModifiers = flags & modifierMask;
+    CGEventFlags oldModifiers = previousModifierFlags & modifierMask;
+    previousModifierFlags = flags;
+
+    bool isDown = (newModifiers & ~oldModifiers) != 0;
+
+    bool ctrl  = (flags & kCGEventFlagMaskControl) != 0;
+    bool alt   = (flags & kCGEventFlagMaskAlternate) != 0;
+    bool shift = (flags & kCGEventFlagMaskShift) != 0;
+    bool meta  = (flags & kCGEventFlagMaskCommand) != 0;
+
+    EventKind kind = isDown ? EventKind::KeyDown : EventKind::KeyUp;
+    auto *ev = new KeytapEvent{kind, (int)keyCode, false, ctrl, alt, shift, meta};
+    tsfn.NonBlockingCall(ev, [](Napi::Env env, Napi::Function jsCallback, KeytapEvent *ev) {
+      auto obj = Napi::Object::New(env);
+      obj.Set("type", ev->kind == EventKind::KeyDown ? "keydown" : "keyup");
+      obj.Set("keyCode", ev->code);
+      obj.Set("ctrlKey", ev->ctrlKey);
+      obj.Set("altKey", ev->altKey);
+      obj.Set("shiftKey", ev->shiftKey);
+      obj.Set("metaKey", ev->metaKey);
+      jsCallback.Call({obj});
+      delete ev;
+    });
 
     return event;
   }
@@ -151,7 +206,7 @@ static void tapThreadFunc() {
       nullptr);
 
   if (!eventTap) {
-    auto *ev = new KeytapEvent{EventKind::KeyDown, -1, false};
+    auto *ev = new KeytapEvent{EventKind::KeyDown, -1, false, false, false, false, false};
     tsfn.NonBlockingCall(ev, [](Napi::Env env, Napi::Function jsCallback, KeytapEvent *ev) {
       auto obj = Napi::Object::New(env);
       obj.Set("type", "error");
@@ -169,7 +224,7 @@ static void tapThreadFunc() {
   CFRelease(source);
 
   // Signal ready
-  auto *ev = new KeytapEvent{EventKind::KeyDown, 0, false};
+  auto *ev = new KeytapEvent{EventKind::KeyDown, 0, false, false, false, false, false};
   tsfn.NonBlockingCall(ev, [](Napi::Env env, Napi::Function jsCallback, KeytapEvent *ev) {
     auto obj = Napi::Object::New(env);
     obj.Set("type", "ready");
