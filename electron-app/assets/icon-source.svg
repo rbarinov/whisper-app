@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" fill="none">
+  <defs>
+    <clipPath id="tileClip">
+      <rect x="80" y="80" width="864" height="864" rx="236"/>
+    </clipPath>
+    <linearGradient id="tile" x1="176" y1="128" x2="848" y2="904" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#D8E3EC"/>
+      <stop offset="0.48" stop-color="#A9B8C7"/>
+      <stop offset="1" stop-color="#7A889B"/>
+    </linearGradient>
+    <radialGradient id="bloom" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(286 214) rotate(44) scale(644)">
+      <stop stop-color="#FFFFFF" stop-opacity="0.34"/>
+      <stop offset="0.42" stop-color="#FFFFFF" stop-opacity="0.10"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="floorFade" x1="512" y1="680" x2="512" y2="944" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#344255" stop-opacity="0"/>
+      <stop offset="1" stop-color="#344255" stop-opacity="0.12"/>
+    </linearGradient>
+    <radialGradient id="micShadow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(512 678) scale(218 98)">
+      <stop stop-color="#1E293B" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#1E293B" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="mic" x1="512" y1="252" x2="512" y2="780" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FBFDFF"/>
+      <stop offset="0.46" stop-color="#F2F6FA"/>
+      <stop offset="1" stop-color="#E2E9F0"/>
+    </linearGradient>
+    <linearGradient id="slot" x1="512" y1="320" x2="512" y2="548" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#BCC8D5"/>
+      <stop offset="1" stop-color="#A5B1BE"/>
+    </linearGradient>
+  </defs>
+
+  <g clip-path="url(#tileClip)">
+    <rect x="80" y="80" width="864" height="864" rx="236" fill="url(#tile)"/>
+    <rect x="80" y="80" width="864" height="864" rx="236" fill="url(#bloom)"/>
+    <rect x="80" y="680" width="864" height="264" fill="url(#floorFade)"/>
+    <ellipse cx="512" cy="684" rx="218" ry="98" fill="url(#micShadow)"/>
+  </g>
+
+  <rect x="104" y="104" width="816" height="816" rx="212" stroke="#FFFFFF" stroke-opacity="0.18" stroke-width="8"/>
+
+  <g opacity="0.08">
+    <path
+      d="M512 252C588.215 252 650 313.785 650 390V478C650 554.215 588.215 616 512 616C435.785 616 374 554.215 374 478V390C374 313.785 435.785 252 512 252Z"
+      fill="#0F172A"
+      transform="translate(0 8)"
+    />
+    <rect x="470" y="582" width="84" height="124" rx="42" fill="#0F172A" transform="translate(0 8)"/>
+    <rect x="356" y="726" width="312" height="56" rx="28" fill="#0F172A" transform="translate(0 8)"/>
+    <path
+      d="M338 510V522C338 631.352 410.543 708 512 708C613.457 708 686 631.352 686 522V510"
+      stroke="#0F172A"
+      stroke-width="40"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      transform="translate(0 8)"
+    />
+  </g>
+
+  <path
+    d="M512 252C588.215 252 650 313.785 650 390V478C650 554.215 588.215 616 512 616C435.785 616 374 554.215 374 478V390C374 313.785 435.785 252 512 252Z"
+    fill="url(#mic)"
+  />
+  <rect x="470" y="320" width="84" height="228" rx="42" fill="url(#slot)"/>
+  <rect x="470" y="582" width="84" height="124" rx="42" fill="url(#mic)"/>
+  <rect x="356" y="726" width="312" height="56" rx="28" fill="url(#mic)"/>
+  <path
+    d="M338 510V522C338 631.352 410.543 708 512 708C613.457 708 686 631.352 686 522V510"
+    stroke="url(#mic)"
+    stroke-width="40"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M406 304C432 282 468 270 512 270C582 270 634 320 634 382"
+    stroke="#FFFFFF"
+    stroke-opacity="0.16"
+    stroke-width="14"
+    stroke-linecap="round"
+  />
+</svg>
