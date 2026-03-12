@@ -44,4 +44,4 @@ linux:
   icon: assets/icons/linux
 deb:
   depends:
-    - libappindicator1
+    - libayatana-appindicator3-1
