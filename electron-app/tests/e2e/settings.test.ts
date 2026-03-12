@@ -25,6 +25,7 @@ test.describe('settings view', () => {
           modelName: 'whisper-1',
           language: 'en',
           hotkeyConfig: { keyCode: 63, keyName: 'F5' },
+          cancelKeyConfig: { keyCode: 1, keyName: 'Escape' },
           llmPostProcessingEnabled: false,
           llmApiBaseURL: '',
           llmApiKey: '',

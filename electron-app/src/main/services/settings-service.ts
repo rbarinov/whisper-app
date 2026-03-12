@@ -16,6 +16,20 @@ import { DEFAULT_SETTINGS } from '../../shared/constants';
 const MAC_KEY_NAME_TO_CODE: Record<string, number> = {
   F1: 122, F2: 120, F3: 160, F4: 177, F5: 176, F6: 178,
   F7: 98, F8: 100, F9: 101, F10: 109, F11: 103, F12: 111,
+  Escape: 53,
+  Space: 49,
+  Tab: 48,
+  Enter: 36,
+  Backspace: 51,
+  Delete: 117,
+  Home: 115,
+  End: 119,
+  PageUp: 116,
+  PageDown: 121,
+  ArrowUp: 126,
+  ArrowDown: 125,
+  ArrowLeft: 123,
+  ArrowRight: 124,
 };
 
 /**
@@ -25,6 +39,20 @@ const MAC_KEY_NAME_TO_CODE: Record<string, number> = {
 const UIOHOOK_KEY_NAME_TO_CODE: Record<string, number> = {
   F1: 59, F2: 60, F3: 61, F4: 62, F5: 63, F6: 64,
   F7: 65, F8: 66, F9: 67, F10: 68, F11: 87, F12: 88,
+  Escape: 1,
+  Space: 57,
+  Tab: 15,
+  Enter: 28,
+  Backspace: 14,
+  Delete: 57427,
+  Home: 57415,
+  End: 57423,
+  PageUp: 57417,
+  PageDown: 57425,
+  ArrowUp: 57416,
+  ArrowDown: 57424,
+  ArrowLeft: 57419,
+  ArrowRight: 57421,
 };
 
 /**
@@ -50,6 +78,35 @@ function normalizeHotkeyCode(savedCode: number | undefined, keyName: string): nu
   return DEFAULT_SETTINGS.hotkeyConfig.keyCode;
 }
 
+function normalizeCancelKeyCode(savedCode: number | undefined, keyName: string): number {
+  if (process.platform === 'darwin') {
+    if (savedCode !== undefined && savedCode > 0) return savedCode;
+    if (keyName in MAC_KEY_NAME_TO_CODE) return MAC_KEY_NAME_TO_CODE[keyName];
+    return DEFAULT_SETTINGS.cancelKeyConfig.keyCode;
+  }
+
+  if (keyName in UIOHOOK_KEY_NAME_TO_CODE) return UIOHOOK_KEY_NAME_TO_CODE[keyName];
+  if (savedCode !== undefined && savedCode > 0 && savedCode < 65536) return savedCode;
+  if (DEFAULT_SETTINGS.cancelKeyConfig.keyName in UIOHOOK_KEY_NAME_TO_CODE) {
+    return UIOHOOK_KEY_NAME_TO_CODE[DEFAULT_SETTINGS.cancelKeyConfig.keyName];
+  }
+  return DEFAULT_SETTINGS.cancelKeyConfig.keyCode;
+}
+
+function buildDefaultSettingsForPlatform(): AppSettings {
+  return {
+    ...DEFAULT_SETTINGS,
+    hotkeyConfig: {
+      ...DEFAULT_SETTINGS.hotkeyConfig,
+      keyCode: normalizeHotkeyCode(DEFAULT_SETTINGS.hotkeyConfig.keyCode, DEFAULT_SETTINGS.hotkeyConfig.keyName),
+    },
+    cancelKeyConfig: {
+      ...DEFAULT_SETTINGS.cancelKeyConfig,
+      keyCode: normalizeCancelKeyCode(DEFAULT_SETTINGS.cancelKeyConfig.keyCode, DEFAULT_SETTINGS.cancelKeyConfig.keyName),
+    },
+  };
+}
+
 /**
  * Get the path where settings.json should be stored.
  * Uses app.getPath('userData') for platform-specific app data directory.
@@ -69,7 +126,7 @@ export function loadSettings(): AppSettings {
     
     // Try to read the file
     if (!fs.existsSync(filePath)) {
-      return { ...DEFAULT_SETTINGS };
+      return buildDefaultSettingsForPlatform();
     }
     
     const fileContent = fs.readFileSync(filePath, 'utf-8');
@@ -85,6 +142,10 @@ export function loadSettings(): AppSettings {
         keyCode: normalizeHotkeyCode(fileSettings.hotkeyConfig?.keyCode, fileSettings.hotkeyConfig?.keyName ?? DEFAULT_SETTINGS.hotkeyConfig.keyName),
         keyName: fileSettings.hotkeyConfig?.keyName ?? DEFAULT_SETTINGS.hotkeyConfig.keyName,
       },
+      cancelKeyConfig: {
+        keyCode: normalizeCancelKeyCode(fileSettings.cancelKeyConfig?.keyCode, fileSettings.cancelKeyConfig?.keyName ?? DEFAULT_SETTINGS.cancelKeyConfig.keyName),
+        keyName: fileSettings.cancelKeyConfig?.keyName ?? DEFAULT_SETTINGS.cancelKeyConfig.keyName,
+      },
       llmPostProcessingEnabled: fileSettings.llmPostProcessingEnabled ?? DEFAULT_SETTINGS.llmPostProcessingEnabled,
       llmApiBaseURL: fileSettings.llmApiBaseURL ?? DEFAULT_SETTINGS.llmApiBaseURL,
       llmApiKey: fileSettings.llmApiKey ?? DEFAULT_SETTINGS.llmApiKey,
@@ -93,7 +154,7 @@ export function loadSettings(): AppSettings {
     };
   } catch (error) {
     // On any error (file not found, invalid JSON, etc.), return defaults
-    return { ...DEFAULT_SETTINGS };
+    return buildDefaultSettingsForPlatform();
   }
 }
 

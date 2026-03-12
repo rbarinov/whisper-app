@@ -28,6 +28,8 @@ TBD
 // On non-macOS platforms, the settings service maps keyName to the platform-specific code.
 export const DEFAULT_HOTKEY_KEY_CODE = 176;
 export const DEFAULT_HOTKEY_KEY_NAME = 'F5';
+export const DEFAULT_CANCEL_KEY_CODE = 53;
+export const DEFAULT_CANCEL_KEY_NAME = 'Escape';
 
 // Retry configuration
 export const MAX_RETRIES = 3;
@@ -59,6 +61,10 @@ export const DEFAULT_SETTINGS: AppSettings = {
   hotkeyConfig: {
     keyCode: DEFAULT_HOTKEY_KEY_CODE,
     keyName: DEFAULT_HOTKEY_KEY_NAME,
+  },
+  cancelKeyConfig: {
+    keyCode: DEFAULT_CANCEL_KEY_CODE,
+    keyName: DEFAULT_CANCEL_KEY_NAME,
   },
   llmPostProcessingEnabled: false,
   llmApiBaseURL: '',

@@ -1,12 +1,11 @@
 import {
+  DEFAULT_CANCEL_KEY_CODE,
   DEFAULT_HOTKEY_KEY_CODE,
   DOUBLE_PRESS_THRESHOLD_MS,
   HOLD_THRESHOLD_MS,
 } from '../../shared/constants';
 import type { HotkeyAction, RecordingState } from '../../shared/types';
 import { HotkeyBridge } from './hotkey-bridge';
-
-const MACOS_ESCAPE_KEY = 53; // macOS virtual keyCode for Escape
 
 type HotkeyActionCallback = (action: HotkeyAction) => void;
 type RecordingStateType = RecordingState['type'];
@@ -51,12 +50,14 @@ export class HotkeyManager {
   };
 
   // Escape keyCode — macOS virtual (53) vs uiohook (1)
-  private escapeKeyCode: number;
+  private cancelKeyCode: number;
 
-  constructor() {
+  constructor(initialHotkeyKeyCode: number = DEFAULT_HOTKEY_KEY_CODE, initialCancelKeyCode: number = DEFAULT_CANCEL_KEY_CODE) {
+    this.currentKeyCode = initialHotkeyKeyCode;
+
     if (this.bridge) {
       // macOS: use native bridge, keyCodes are macOS virtual keyCodes
-      this.escapeKeyCode = MACOS_ESCAPE_KEY;
+      this.cancelKeyCode = initialCancelKeyCode;
 
       this.bridge.onKeyDown((keyCode) => {
         this.handleKeyDown(keyCode);
@@ -76,7 +77,7 @@ export class HotkeyManager {
     } else {
       // Non-macOS: use uiohook, keyCodes are uiohook keyCodes
       // Map the default macOS virtual keyCode to uiohook
-      this.escapeKeyCode = IS_TEST_ENV ? 1 : getUiohook().UiohookKey.Escape;
+      this.cancelKeyCode = IS_TEST_ENV ? 1 : getUiohook().UiohookKey.Escape;
     }
   }
 
@@ -110,6 +111,10 @@ export class HotkeyManager {
         this.start();
       }
     }
+  }
+
+  setCancelKey(keyCode: number): void {
+    this.cancelKeyCode = keyCode;
   }
 
   start(): void {
@@ -156,7 +161,7 @@ export class HotkeyManager {
   }
 
   private handleKeyDown(keyCode: number): void {
-    if (keyCode !== this.currentKeyCode && keyCode !== this.escapeKeyCode) {
+    if (keyCode !== this.currentKeyCode && keyCode !== this.cancelKeyCode) {
       return;
     }
 
@@ -202,7 +207,7 @@ export class HotkeyManager {
       return;
     }
 
-    if (keyCode === this.escapeKeyCode && this.activeRecordingState !== 'idle') {
+    if (keyCode === this.cancelKeyCode && this.activeRecordingState !== 'idle') {
       this.emitAction('cancel');
     }
   }

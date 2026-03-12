@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { Button } from '../components/Button';
+import { KeyCaptureButton } from '../components/KeyCaptureButton';
 import { LegalNotice } from '../components/LegalNotice';
 import { WindowChrome } from '../components/WindowChrome';
 import type { AppSettings } from '../../shared/types';
@@ -79,6 +80,7 @@ function PermissionRow({
 export function SettingsView() {
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [permissions, setPermissions] = useState<PermissionState>(DEFAULT_PERMISSIONS);
+  const [hotkeyError, setHotkeyError] = useState<string | null>(null);
 
   const refreshPermissions = useCallback(async () => {
     const latest = await window.api.checkPermissions();
@@ -117,6 +119,46 @@ export function SettingsView() {
     await window.api.openAccessibilitySettings();
     await refreshPermissions();
   };
+
+  const handleRecordKeyCapture = useCallback((keyCode: number, keyName: string) => {
+    if (!settings) {
+      return;
+    }
+
+    setHotkeyError(null);
+    if (keyCode === settings.cancelKeyConfig.keyCode) {
+      setHotkeyError('Record and Cancel keys must be different.');
+      return;
+    }
+
+    save({
+      ...settings,
+      hotkeyConfig: {
+        keyCode,
+        keyName,
+      },
+    });
+  }, [save, settings]);
+
+  const handleCancelKeyCapture = useCallback((keyCode: number, keyName: string) => {
+    if (!settings) {
+      return;
+    }
+
+    setHotkeyError(null);
+    if (keyCode === settings.hotkeyConfig.keyCode) {
+      setHotkeyError('Record and Cancel keys must be different.');
+      return;
+    }
+
+    save({
+      ...settings,
+      cancelKeyConfig: {
+        keyCode,
+        keyName,
+      },
+    });
+  }, [save, settings]);
 
   if (!settings) {
     return (
@@ -250,6 +292,27 @@ export function SettingsView() {
                         </>
                       ) : null}
                     </PermissionRow>
+                  </div>
+                </section>
+
+                <section className="section-card p-3.5 min-[980px]:col-span-2">
+                  <div className="mb-2.5">
+                    <h2 className="text-[18px] font-semibold tracking-[-0.02em] text-[#16211b]">Hotkeys</h2>
+                    <p className="mt-1 text-sm leading-5 text-[#4b5650]">Configure separate keys for recording and canceling.</p>
+                  </div>
+
+                  <div className="space-y-2.5">
+                    <KeyCaptureButton
+                      label="Record"
+                      keyName={settings.hotkeyConfig.keyName}
+                      onCapture={handleRecordKeyCapture}
+                    />
+                    <KeyCaptureButton
+                      label="Cancel"
+                      keyName={settings.cancelKeyConfig.keyName}
+                      onCapture={handleCancelKeyCapture}
+                    />
+                    {hotkeyError ? <p className="text-xs font-semibold text-[#b5402f]">{hotkeyError}</p> : null}
                   </div>
                 </section>
 

@@ -1,5 +1,6 @@
 import { BrowserWindow, systemPreferences } from 'electron';
 import {
+  DEFAULT_SETTINGS,
   OVERLAY_DISMISS_CANCELLED_MS,
   OVERLAY_DISMISS_DONE_MS,
   OVERLAY_DISMISS_ERROR_MS,
@@ -75,9 +76,9 @@ export class AppStateManager {
     );
   }
   constructor() {
-    this.settings = loadSettings();
+    this.settings = loadSettings() ?? DEFAULT_SETTINGS;
     this.history = loadHistory();
-    this.hotkeyManager = new HotkeyManager();
+    this.hotkeyManager = new HotkeyManager(this.settings.hotkeyConfig.keyCode, this.settings.cancelKeyConfig.keyCode);
     this.hotkeyManager.setActionCallback((action) => this.handleHotkeyAction(action));
   }
   setMainWindow(win: BrowserWindow): void {
@@ -91,6 +92,7 @@ export class AppStateManager {
     this.isMicrophoneGranted = permissionSnapshot.microphone === 'granted';
 
     this.hotkeyManager.setHotkey(this.settings.hotkeyConfig.keyCode);
+    this.hotkeyManager.setCancelKey(this.settings.cancelKeyConfig.keyCode);
     this.applyRecordingState(this.recordingState);
     if (options?.startHotkeyManager !== false) {
       this.hotkeyManager.start();
@@ -287,6 +289,7 @@ export class AppStateManager {
     this.settings = settings;
     saveSettings(settings);
     this.hotkeyManager.setHotkey(settings.hotkeyConfig.keyCode);
+    this.hotkeyManager.setCancelKey(settings.cancelKeyConfig.keyCode);
     this.broadcastStateUpdate();
   }
 

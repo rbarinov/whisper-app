@@ -17,6 +17,7 @@ const {
   mockGetAudioState,
   mockSetActionCallback,
   mockSetHotkey,
+  mockSetCancelKey,
   mockSetRecordingState,
   mockStart,
   mockStop,
@@ -43,6 +44,7 @@ const {
   mockGetAudioState: vi.fn(),
   mockSetActionCallback: vi.fn(),
   mockSetHotkey: vi.fn(),
+  mockSetCancelKey: vi.fn(),
   mockSetRecordingState: vi.fn(),
   mockStart: vi.fn(),
   mockStop: vi.fn(),
@@ -81,6 +83,7 @@ vi.mock('../../src/main/services/hotkey-manager', () => ({
   HotkeyManager: class {
     setActionCallback = mockSetActionCallback;
     setHotkey = mockSetHotkey;
+    setCancelKey = mockSetCancelKey;
     setRecordingState = mockSetRecordingState;
     start = mockStart;
     stop = mockStop;

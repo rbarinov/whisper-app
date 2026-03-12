@@ -13,11 +13,26 @@ import { DEFAULT_SETTINGS } from '../../src/shared/constants';
 const UIOHOOK_KEY_NAME_TO_CODE: Record<string, number> = {
   F1: 59, F2: 60, F3: 61, F4: 62, F5: 63, F6: 64,
   F7: 65, F8: 66, F9: 67, F10: 68, F11: 87, F12: 88,
+  Escape: 1,
 };
 
 function expectedKeyCode(savedCode: number, keyName: string): number {
   if (process.platform === 'darwin') return savedCode;
   return UIOHOOK_KEY_NAME_TO_CODE[keyName] ?? savedCode;
+}
+
+function expectedDefaultSettings(): AppSettings {
+  return {
+    ...DEFAULT_SETTINGS,
+    hotkeyConfig: {
+      ...DEFAULT_SETTINGS.hotkeyConfig,
+      keyCode: expectedKeyCode(DEFAULT_SETTINGS.hotkeyConfig.keyCode, DEFAULT_SETTINGS.hotkeyConfig.keyName),
+    },
+    cancelKeyConfig: {
+      ...DEFAULT_SETTINGS.cancelKeyConfig,
+      keyCode: expectedKeyCode(DEFAULT_SETTINGS.cancelKeyConfig.keyCode, DEFAULT_SETTINGS.cancelKeyConfig.keyName),
+    },
+  };
 }
 
 // Mock electron module before importing settings-service
@@ -62,7 +77,7 @@ describe('Settings Service', () => {
   describe('loadSettings', () => {
     it('should return DEFAULT_SETTINGS when file does not exist', () => {
       const settings = loadSettings();
-      expect(settings).toEqual(DEFAULT_SETTINGS);
+      expect(settings).toEqual(expectedDefaultSettings());
     });
 
     it('should load settings from file when it exists', () => {
@@ -75,6 +90,10 @@ describe('Settings Service', () => {
         hotkeyConfig: {
           keyCode: 49,
           keyName: 'F7',
+        },
+        cancelKeyConfig: {
+          keyCode: 53,
+          keyName: 'Escape',
         },
         llmPostProcessingEnabled: true,
         llmApiBaseURL: 'https://llm.custom.api.com',
@@ -95,6 +114,10 @@ describe('Settings Service', () => {
         hotkeyConfig: {
           ...testSettings.hotkeyConfig,
           keyCode: expectedKeyCode(49, 'F7'),
+        },
+        cancelKeyConfig: {
+          ...testSettings.cancelKeyConfig,
+          keyCode: expectedKeyCode(53, 'Escape'),
         },
       });
     });
@@ -120,6 +143,10 @@ describe('Settings Service', () => {
         ...DEFAULT_SETTINGS.hotkeyConfig,
         keyCode: expectedKeyCode(DEFAULT_SETTINGS.hotkeyConfig.keyCode, DEFAULT_SETTINGS.hotkeyConfig.keyName),
       });
+      expect(loaded.cancelKeyConfig).toEqual({
+        ...DEFAULT_SETTINGS.cancelKeyConfig,
+        keyCode: expectedKeyCode(DEFAULT_SETTINGS.cancelKeyConfig.keyCode, DEFAULT_SETTINGS.cancelKeyConfig.keyName),
+      });
       expect(loaded.llmPostProcessingEnabled).toBe(DEFAULT_SETTINGS.llmPostProcessingEnabled);
       expect(loaded.llmApiBaseURL).toBe(DEFAULT_SETTINGS.llmApiBaseURL);
       expect(loaded.llmApiKey).toBe(DEFAULT_SETTINGS.llmApiKey);
@@ -135,7 +162,7 @@ describe('Settings Service', () => {
 
       // Load should return defaults instead of throwing
       const loaded = loadSettings();
-      expect(loaded).toEqual(DEFAULT_SETTINGS);
+      expect(loaded).toEqual(expectedDefaultSettings());
     });
 
     it('should handle nested hotkeyConfig with missing fields', () => {
@@ -197,6 +224,10 @@ describe('Settings Service', () => {
           keyCode: 100,
           keyName: 'F10',
         },
+        cancelKeyConfig: {
+          keyCode: 53,
+          keyName: 'Escape',
+        },
         llmPostProcessingEnabled: true,
         llmApiBaseURL: 'https://llm.test.api.com',
         llmApiKey: 'sk-llm-roundtrip',
@@ -216,6 +247,10 @@ describe('Settings Service', () => {
         hotkeyConfig: {
           ...testSettings.hotkeyConfig,
           keyCode: expectedKeyCode(100, 'F10'),
+        },
+        cancelKeyConfig: {
+          ...testSettings.cancelKeyConfig,
+          keyCode: expectedKeyCode(53, 'Escape'),
         },
       });
     });
@@ -309,6 +344,10 @@ describe('Settings Service', () => {
           keyCode: 64, // UiohookKey.F6
           keyName: 'F6',
         },
+        cancelKeyConfig: {
+          keyCode: 53,
+          keyName: 'Escape',
+        },
         llmPostProcessingEnabled: true,
         llmApiBaseURL: 'https://integration.llm.test.com',
         llmApiKey: 'sk-integration-llm-key',
@@ -328,6 +367,10 @@ describe('Settings Service', () => {
         hotkeyConfig: {
           ...originalSettings.hotkeyConfig,
           keyCode: expectedKeyCode(64, 'F6'),
+        },
+        cancelKeyConfig: {
+          ...originalSettings.cancelKeyConfig,
+          keyCode: expectedKeyCode(53, 'Escape'),
         },
       });
       expect(restored.apiKey).toBe(originalSettings.apiKey);

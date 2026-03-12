@@ -34,6 +34,7 @@ export interface AppSettings {
   modelName: string;
   language: string;
   hotkeyConfig: HotkeyConfig;
+  cancelKeyConfig: HotkeyConfig;
   llmPostProcessingEnabled: boolean;
   llmApiBaseURL: string;
   llmApiKey: string;
