@@ -1,4 +1,4 @@
-import { Tray, Menu, nativeImage, app, NativeImage } from 'electron';
+import { Tray, Menu, nativeImage, nativeTheme, app, NativeImage } from 'electron';
 import path from 'path';
 import type { RecordingState } from '../shared/types';
 
@@ -46,8 +46,14 @@ export class TrayManager {
           'Install the AppIndicator extension for GNOME Shell.',
       );
     }
-  }
 
+    // On Linux/Windows, listen for theme changes to swap icon color
+    if (process.platform !== 'darwin') {
+      nativeTheme.on('updated', () => {
+        this.updateState(this.currentState);
+      });
+    }
+  }
   /**
    * Updates the tray icon and rebuilds the context menu for the given state.
    */
@@ -80,16 +86,21 @@ export class TrayManager {
     // dist/main/main/ → ../../../assets/icons/
     const iconsDir = path.join(__dirname, '../../../assets/icons');
 
+    // On macOS, template images handle dark/light automatically.
+    // On Linux/Windows, use light (white) icons on dark themes.
+    const useLightIcon = process.platform !== 'darwin' && nativeTheme.shouldUseDarkColors;
+    const suffix = useLightIcon ? '-light' : '';
+
     switch (state.type) {
       case 'recording':
-        return path.join(iconsDir, 'tray-recording.png');
+        return path.join(iconsDir, `tray-recording${suffix}.png`);
       case 'transcribing':
       case 'processing':
-        return path.join(iconsDir, 'tray-busy.png');
+        return path.join(iconsDir, `tray-busy${suffix}.png`);
       case 'idle':
       case 'error':
       default:
-        return path.join(iconsDir, 'tray-idle.png');
+        return path.join(iconsDir, `tray-idle${suffix}.png`);
     }
   }
 
