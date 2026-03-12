@@ -228,9 +228,11 @@ export function handleRecordingData(ctx: LifecycleContext, data: RendererRecordi
     ctx.lastRecordingBuffer = wavBuffer;
 
     if (ctx.pendingCancelledDurationSeconds !== null) {
-      persistCancelledRecording(wavBuffer, ctx.pendingCancelledDurationSeconds);
-      ctx.history = loadHistory();
-      ctx.broadcastStateUpdate();
+      const didPersist = persistCancelledRecording(wavBuffer, ctx.pendingCancelledDurationSeconds);
+      if (didPersist) {
+        ctx.history = loadHistory();
+        ctx.broadcastStateUpdate();
+      }
       ctx.pendingCancelledDurationSeconds = null;
     }
   }
@@ -258,8 +260,10 @@ export function cancelRecording(ctx: LifecycleContext): void {
     ctx.pendingCancelledDurationSeconds = meetsMinDuration ? recordingDurationMs / 1000 : null;
 
     if (meetsMinDuration && ctx.lastRecordingBuffer) {
-      persistCancelledRecording(ctx.lastRecordingBuffer, recordingDurationMs / 1000);
-      ctx.history = loadHistory();
+      const didPersist = persistCancelledRecording(ctx.lastRecordingBuffer, recordingDurationMs / 1000);
+      if (didPersist) {
+        ctx.history = loadHistory();
+      }
       ctx.pendingCancelledDurationSeconds = null;
     }
 
@@ -321,7 +325,7 @@ export function waitForRecordingData(ctx: LifecycleContext): Promise<RendererRec
 export function persistCancelledRecording(
   wavBuffer: Buffer,
   durationSeconds: number
-): void {
+): boolean {
   const entryId = randomUUID();
   const relativeAudioPath = `${entryId}.wav`;
   const absoluteAudioPath = path.join(getRecordingsDir(), relativeAudioPath);
@@ -334,8 +338,10 @@ export function persistCancelledRecording(
       durationSeconds,
       audioFilePath: relativeAudioPath,
     });
+    return true;
   } catch (error) {
     console.error('Failed to persist cancelled recording:', error);
+    return false;
   }
 }
 
