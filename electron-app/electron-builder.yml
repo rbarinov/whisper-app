@@ -7,9 +7,10 @@ files:
   - dist/
   - assets/
   - node_modules/
-  - "!node_modules/uiohook-napi/**"
   - "!node_modules/iohook-macos/**"
   - package.json
+asarUnpack:
+  - "**/node_modules/uiohook-napi/**"
 npmRebuild: false
 extraResources:
   - from: native/keytap/build/Release/keytap.node
