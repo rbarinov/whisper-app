@@ -4,6 +4,12 @@ vi.mock('electron', () => ({
   clipboard: {
     writeText: vi.fn(),
     readText: vi.fn().mockReturnValue(''),
+    readHTML: vi.fn().mockReturnValue(''),
+    readRTF: vi.fn().mockReturnValue(''),
+    readImage: vi.fn().mockReturnValue({ isEmpty: () => true }),
+    availableFormats: vi.fn().mockReturnValue([]),
+    write: vi.fn(),
+    clear: vi.fn(),
   },
 }));
 
@@ -16,6 +22,7 @@ vi.mock('child_process', () => ({
 import {
   isWaylandSession,
   pasteText,
+  type ClipboardSnapshot,
 } from '../../src/main/services/paste-service';
 
 describe('Paste Service', () => {
@@ -62,19 +69,32 @@ describe('Paste Service', () => {
   });
 
   describe('pasteText', () => {
+    const emptySnapshot: ClipboardSnapshot = {
+      text: '',
+      html: '',
+      rtf: '',
+      image: null,
+      formats: [],
+    };
+
     it('writes text to clipboard and simulates keystroke', async () => {
       const clipboardWrite = vi.fn();
       const clipboardRead = vi.fn().mockReturnValue('');
+      const clipboardSave = vi.fn().mockReturnValue(emptySnapshot);
+      const clipboardRestore = vi.fn();
       const simulateKeystroke = vi.fn().mockResolvedValue(undefined);
 
       const result = await pasteText('hello world', {
         clipboardWrite,
         clipboardRead,
+        clipboardSave,
+        clipboardRestore,
         simulateKeystroke,
         isWayland: false,
         delayMs: 0,
       });
 
+      expect(clipboardSave).toHaveBeenCalled();
       expect(clipboardWrite).toHaveBeenCalledWith('hello world');
       expect(simulateKeystroke).toHaveBeenCalled();
       expect(result.success).toBe(true);
@@ -94,47 +114,61 @@ describe('Paste Service', () => {
       expect(clipboardWrite).toHaveBeenCalledWith('wayland text');
     });
 
-    it('saves and restores previous clipboard contents', async () => {
+    it('saves and restores previous clipboard contents (all formats)', async () => {
+      const previousSnapshot: ClipboardSnapshot = {
+        text: 'previous text',
+        html: '<b>previous</b>',
+        rtf: '{\\rtf1 previous}',
+        image: null,
+        formats: ['text/plain', 'text/html', 'text/rtf'],
+      };
       const clipboardWrite = vi.fn();
-      const clipboardRead = vi.fn()
-        .mockReturnValueOnce('previous content')  // first call: save previous clipboard
-        .mockReturnValueOnce('new text');          // second call: restore check (clipboard still has our text)
+      const clipboardRead = vi.fn().mockReturnValue('new text');
+      const clipboardSave = vi.fn().mockReturnValue(previousSnapshot);
+      const clipboardRestore = vi.fn();
       const simulateKeystroke = vi.fn().mockResolvedValue(undefined);
 
       await pasteText('new text', {
         clipboardWrite,
         clipboardRead,
+        clipboardSave,
+        clipboardRestore,
         simulateKeystroke,
         isWayland: false,
         delayMs: 0,
         restoreDelayMs: 10,
       });
 
-      // First call: save previous clipboard (via clipboardRead)
-      expect(clipboardRead).toHaveBeenCalled();
-      // First clipboardWrite: set the new text
+      expect(clipboardSave).toHaveBeenCalled();
       expect(clipboardWrite).toHaveBeenCalledWith('new text');
 
       // Wait for clipboard restore timeout
       await new Promise((resolve) => setTimeout(resolve, 50));
 
-      // clipboardRead is called again to check if our text is still there
-      // clipboardWrite should be called again to restore
-      expect(clipboardWrite).toHaveBeenCalledWith('previous content');
+      // clipboardRestore should be called with full snapshot
+      expect(clipboardRestore).toHaveBeenCalledWith(previousSnapshot);
     });
 
     it('does not restore clipboard if user copied something else', async () => {
-      const calls: string[] = [];
-      const clipboardWrite = vi.fn((text: string) => calls.push(`write:${text}`));
-      // First read returns previous content, second read returns something different
-      const clipboardRead = vi.fn()
-        .mockReturnValueOnce('previous content')
-        .mockReturnValueOnce('user copied something new');
+      const previousSnapshot: ClipboardSnapshot = {
+        text: 'previous content',
+        html: '',
+        rtf: '',
+        image: null,
+        formats: ['text/plain'],
+      };
+      const clipboardWrite = vi.fn();
+      // clipboardRead returns something different from what we pasted
+      const clipboardRead = vi.fn().mockReturnValue('user copied something new');
+      const clipboardSave = vi.fn().mockReturnValue(previousSnapshot);
+      const clipboardRestore = vi.fn();
       const simulateKeystroke = vi.fn().mockResolvedValue(undefined);
 
       await pasteText('transcribed text', {
         clipboardWrite,
         clipboardRead,
+        clipboardSave,
+        clipboardRestore,
         simulateKeystroke,
         isWayland: false,
         delayMs: 0,
@@ -144,18 +178,19 @@ describe('Paste Service', () => {
       await new Promise((resolve) => setTimeout(resolve, 50));
 
       // Should NOT restore because clipboard changed
-      expect(clipboardWrite).toHaveBeenCalledTimes(1);
-      expect(clipboardWrite).toHaveBeenCalledWith('transcribed text');
+      expect(clipboardRestore).not.toHaveBeenCalled();
     });
 
     it('falls back to clipboard-only when keystroke simulation fails', async () => {
       const clipboardWrite = vi.fn();
       const clipboardRead = vi.fn().mockReturnValue('');
+      const clipboardSave = vi.fn().mockReturnValue(emptySnapshot);
       const simulateKeystroke = vi.fn().mockRejectedValue(new Error('Permission denied'));
 
       const result = await pasteText('fail paste', {
         clipboardWrite,
         clipboardRead,
+        clipboardSave,
         simulateKeystroke,
         isWayland: false,
         delayMs: 0,
@@ -173,6 +208,7 @@ describe('Paste Service', () => {
       await pasteText('delayed paste', {
         clipboardWrite: vi.fn(),
         clipboardRead: vi.fn().mockReturnValue(''),
+        clipboardSave: vi.fn().mockReturnValue(emptySnapshot),
         simulateKeystroke,
         isWayland: false,
         delayMs: 100,
@@ -194,6 +230,69 @@ describe('Paste Service', () => {
 
       expect(result.method).toBe('clipboard-only');
       expect(simulateKeystroke).not.toHaveBeenCalled();
+    });
+
+    it('saves and restores clipboard with image data', async () => {
+      const mockImage = { isEmpty: () => false } as unknown as import('electron').NativeImage;
+      const previousSnapshot: ClipboardSnapshot = {
+        text: '',
+        html: '',
+        rtf: '',
+        image: mockImage,
+        formats: ['image/png'],
+      };
+      const clipboardWrite = vi.fn();
+      const clipboardRead = vi.fn().mockReturnValue('transcribed');
+      const clipboardSave = vi.fn().mockReturnValue(previousSnapshot);
+      const clipboardRestore = vi.fn();
+      const simulateKeystroke = vi.fn().mockResolvedValue(undefined);
+
+      await pasteText('transcribed', {
+        clipboardWrite,
+        clipboardRead,
+        clipboardSave,
+        clipboardRestore,
+        simulateKeystroke,
+        isWayland: false,
+        delayMs: 0,
+        restoreDelayMs: 10,
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      // Should restore the image snapshot
+      expect(clipboardRestore).toHaveBeenCalledWith(previousSnapshot);
+    });
+
+    it('does not restore if previous text was the same as pasted text', async () => {
+      const previousSnapshot: ClipboardSnapshot = {
+        text: 'same text',
+        html: '',
+        rtf: '',
+        image: null,
+        formats: ['text/plain'],
+      };
+      const clipboardWrite = vi.fn();
+      const clipboardRead = vi.fn().mockReturnValue('same text');
+      const clipboardSave = vi.fn().mockReturnValue(previousSnapshot);
+      const clipboardRestore = vi.fn();
+      const simulateKeystroke = vi.fn().mockResolvedValue(undefined);
+
+      await pasteText('same text', {
+        clipboardWrite,
+        clipboardRead,
+        clipboardSave,
+        clipboardRestore,
+        simulateKeystroke,
+        isWayland: false,
+        delayMs: 0,
+        restoreDelayMs: 10,
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      // Should NOT restore — previous text was same as pasted, no point restoring
+      expect(clipboardRestore).not.toHaveBeenCalled();
     });
   });
 });

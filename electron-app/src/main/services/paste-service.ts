@@ -1,4 +1,4 @@
-import { clipboard } from 'electron';
+import { clipboard, NativeImage } from 'electron';
 import { execFile } from 'child_process';
 
 export interface PasteResult {
@@ -59,6 +59,66 @@ async function simulatePasteKeystroke(): Promise<void> {
   });
 }
 
+/** Snapshot of all clipboard formats for save/restore. */
+export interface ClipboardSnapshot {
+  text: string;
+  html: string;
+  rtf: string;
+  image: NativeImage | null;
+  formats: string[];
+}
+
+/**
+ * Save all clipboard formats into a snapshot.
+ * Captures text, HTML, RTF, and image data so nothing is lost.
+ */
+export function saveClipboard(): ClipboardSnapshot {
+  const formats = clipboard.availableFormats();
+  return {
+    text: clipboard.readText(),
+    html: clipboard.readHTML(),
+    rtf: clipboard.readRTF(),
+    image: formats.some(f => f.startsWith('image/')) ? clipboard.readImage() : null,
+    formats,
+  };
+}
+
+/**
+ * Restore clipboard from a previously saved snapshot.
+ * Uses clipboard.write() to set all formats atomically.
+ */
+export function restoreClipboard(snapshot: ClipboardSnapshot): void {
+  // If clipboard was empty, just clear it
+  if (snapshot.formats.length === 0) {
+    clipboard.clear();
+    return;
+  }
+
+  const writeData: Electron.Data = {};
+
+  if (snapshot.text) {
+    writeData.text = snapshot.text;
+  }
+  if (snapshot.html) {
+    writeData.html = snapshot.html;
+  }
+  if (snapshot.rtf) {
+    writeData.rtf = snapshot.rtf;
+  }
+  if (snapshot.image && !snapshot.image.isEmpty()) {
+    writeData.image = snapshot.image;
+  }
+
+  // If we captured formats but none of the above were populated,
+  // the clipboard had custom/unknown format — clear to avoid stale data
+  if (Object.keys(writeData).length === 0) {
+    clipboard.clear();
+    return;
+  }
+
+  clipboard.write(writeData);
+}
+
 export interface PasteOptions {
   delayMs?: number;
   restoreDelayMs?: number;
@@ -67,6 +127,10 @@ export interface PasteOptions {
   clipboardWrite?: (text: string) => void;
   /** Override clipboard read for testing */
   clipboardRead?: () => string;
+  /** Override clipboard save for testing */
+  clipboardSave?: () => ClipboardSnapshot;
+  /** Override clipboard restore for testing */
+  clipboardRestore?: (snapshot: ClipboardSnapshot) => void;
   /** Override keystroke simulation for testing */
   simulateKeystroke?: () => Promise<void>;
 }
@@ -91,6 +155,8 @@ export async function pasteText(
     restoreDelayMs = 500,
     clipboardWrite = (t: string) => clipboard.writeText(t),
     clipboardRead = () => clipboard.readText(),
+    clipboardSave = saveClipboard,
+    clipboardRestore = restoreClipboard,
     simulateKeystroke = simulatePasteKeystroke,
     isWayland,
   } = options;
@@ -106,8 +172,8 @@ export async function pasteText(
     };
   }
 
-  // 1. Save previous clipboard contents
-  const previousClipboard = clipboardRead();
+  // 1. Save ALL clipboard formats (text, HTML, RTF, image)
+  const previousSnapshot = clipboardSave();
 
   // 2. Write transcribed text to clipboard
   clipboardWrite(text);
@@ -124,8 +190,8 @@ export async function pasteText(
       try {
         // Only restore if clipboard still contains our text
         // (user may have copied something else in the meantime)
-        if (clipboardRead() === text && previousClipboard !== text) {
-          clipboardWrite(previousClipboard);
+        if (clipboardRead() === text && previousSnapshot.text !== text) {
+          clipboardRestore(previousSnapshot);
         }
       } catch {
         // Clipboard restore is best-effort
