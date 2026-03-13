@@ -27,6 +27,8 @@ whisperapp_debug.log
 # Electron app build artifacts
 electron-app/dist/
 electron-app/out/
+electron-app/release/
 electron-app/node_modules/
 electron-app/playwright-report/
+electron-app/test-results/
 node_modules/
