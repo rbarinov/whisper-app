@@ -111,23 +111,11 @@ app.whenReady().then(() => {
     () => { appStateManager.stopRecordingAndTranscribe(); }
   );
 
-  const shouldSkipOnboarding = process.platform !== 'darwin';
-  const permissions = appStateManager.checkPermissions();
-  const shouldShowOnboarding =
-    !shouldSkipOnboarding && (!permissions.accessibility || permissions.microphone !== 'granted');
+  appStateManager.initialize({ startHotkeyManager: true });
 
-  console.log('[Startup] Platform:', process.platform, '| Permissions:', JSON.stringify(permissions), '| Show onboarding:', shouldShowOnboarding);
-
-  appStateManager.initialize({ startHotkeyManager: !shouldShowOnboarding });
-
-  if (shouldShowOnboarding) {
-    openOnboardingWindow(() => {
-      const refreshedPermissions = appStateManager.checkPermissions();
-      if (refreshedPermissions.accessibility) {
-        appStateManager.startHotkeyManager();
-      }
-    });
-  }
+  openOnboardingWindow(() => {
+    openSettingsWindow();
+  });
 });
 
 app.on('window-all-closed', () => {

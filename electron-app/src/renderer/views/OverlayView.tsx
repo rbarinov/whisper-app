@@ -86,7 +86,7 @@ export function OverlayView() {
     processing: '#c38b36',
     done: '#169976',
     error: '#d97745',
-    cancelled: '#7a817d',
+    cancelled: '#b0b5b2',
   };
 
   const accent = accentColors[state.type];
@@ -119,7 +119,7 @@ export function OverlayView() {
 
           <p
             className={`min-w-0 flex-1 truncate text-[12px] font-medium leading-none ${
-              state.type === 'cancelled' ? 'text-white/72' : 'text-white'
+              state.type === 'cancelled' ? 'text-white/90' : 'text-white'
             }`}
           >
             {heading}

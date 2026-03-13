@@ -232,8 +232,8 @@ export function SettingsView() {
   return (
     <div className="app-shell app-shell--flush">
       <div className="window-panel window-panel--flush">
-        <div className="window-content overflow-y-auto overflow-x-hidden">
-          <div className="flex min-h-full min-w-0 flex-col">
+        <div className="window-content">
+          <div className="flex h-full min-w-0 flex-col">
             <div className="px-4 pt-3">
               <WindowChrome label="Settings" />
             </div>
@@ -244,7 +244,7 @@ export function SettingsView() {
               </div>
             </header>
 
-            <div className="flex-1 px-4 py-4">
+            <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-4">
               <div className="mx-auto grid max-w-6xl gap-3 min-[980px]:grid-cols-[minmax(0,1.45fr)_minmax(17rem,0.8fr)]">
                 <section className="section-card p-3.5">
                   <div className="mb-2.5">

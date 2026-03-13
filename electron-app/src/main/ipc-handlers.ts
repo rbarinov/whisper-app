@@ -27,7 +27,7 @@ export function openOnboardingWindow(onClosed?: () => void): BrowserWindow {
   onboardingWindow = new BrowserWindow({
     ...buildFramelessWindowOptions(),
     width: 860,
-    height: 480,
+    height: 520,
     resizable: false,
     minimizable: false,
     maximizable: false,

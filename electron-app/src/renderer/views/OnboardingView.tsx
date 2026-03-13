@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Button } from '../components/Button';
 import { LegalNotice } from '../components/LegalNotice';
 import { WindowChrome } from '../components/WindowChrome';
@@ -140,11 +140,8 @@ export function OnboardingView() {
 
   const isMicrophoneGranted = permissions.microphone === 'granted';
   const isAccessibilityGranted = permissions.accessibility;
-  const allGranted = isMicrophoneGranted && isAccessibilityGranted;
 
-  const continueText = useMemo(() => {
-    return allGranted ? 'Open WhisperApp' : 'Waiting for permissions...';
-  }, [allGranted]);
+  const continueText = 'Open WhisperApp';
 
   return (
     <div className="app-shell app-shell--flush">
@@ -201,11 +198,9 @@ export function OnboardingView() {
                   <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center">
                     <Button
                       onClick={() => {
-                        if (allGranted) {
-                          window.close();
-                        }
+                        void window.api.showSettings();
+                        window.close();
                       }}
-                      disabled={!allGranted}
                       className="min-w-[180px]"
                     >
                       {continueText}
