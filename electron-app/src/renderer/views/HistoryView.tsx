@@ -59,10 +59,11 @@ function HistoryRow({
     entry.status === 'successful' ? 'status-pill status-pill--ready' :
     entry.status === 'failed' ? 'status-pill status-pill--pending' :
     entry.status === 'cancelled' ? 'status-pill status-pill--muted' :
+    entry.status === 'recording' || entry.status === 'processing' || entry.status === 'transcribing' ? 'status-pill status-pill--live' :
     'status-pill status-pill--pending';
 
   return (
-    <article className={`history-entry ${entry.status === 'transcribing' ? 'history-entry--live' : ''}`}>
+    <article className={`history-entry ${entry.status === 'recording' || entry.status === 'transcribing' || entry.status === 'processing' ? 'history-entry--live' : ''}`}>
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-2.5 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0 flex-1">
@@ -74,7 +75,11 @@ function HistoryRow({
                     ? 'Retry needed'
                     : entry.status === 'cancelled'
                       ? 'Cancelled'
-                      : 'Transcribing'}
+                      : entry.status === 'recording'
+                        ? 'Recording'
+                        : entry.status === 'processing'
+                          ? 'Processing'
+                          : 'Transcribing'}
               </span>
               <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#6b746f]">
                 {formatRelativeTime(new Date(entry.timestamp).getTime())}
@@ -127,8 +132,14 @@ function HistoryRow({
         </div>
 
         <div className="border-t border-[#15231e]/6 pt-3">
+          {entry.status === 'recording' && (
+            <p className="text-sm font-medium text-[#4675d8]">Recording...</p>
+          )}
           {entry.status === 'transcribing' && (
             <p className="text-sm font-medium text-[#4675d8]">Transcribing...</p>
+          )}
+          {entry.status === 'processing' && (
+            <p className="text-sm font-medium text-[#4675d8]">Processing with LLM...</p>
           )}
           {entry.status === 'successful' && entry.text && (
             <div className="space-y-2.5">

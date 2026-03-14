@@ -338,6 +338,11 @@
     background: rgba(122, 129, 125, 0.16);
   }
 
+  .status-pill--live {
+    color: #4675d8;
+    background: rgba(70, 117, 216, 0.12);
+  }
+
   .field-label {
     display: block;
     margin-bottom: 6px;
