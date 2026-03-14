@@ -281,7 +281,6 @@ export function HistoryView() {
     <div className="app-shell app-shell--flush">
       <div className="window-panel window-panel--flush">
         <div className="window-content">
-          <div className="flex h-full min-w-0 flex-col">
             <div className="px-4 pt-3">
               <WindowChrome label="History" />
             </div>
@@ -305,7 +304,7 @@ export function HistoryView() {
               </div>
             </header>
 
-            <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-4">
+            <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-4">
               {history.length === 0 ? (
                 <div className="flex h-full items-center justify-center">
                   <div className="section-card flex max-w-md flex-col items-center px-6 py-6 text-center">
@@ -337,7 +336,6 @@ export function HistoryView() {
                 </div>
               )}
             </div>
-          </div>
         </div>
       </div>
     </div>

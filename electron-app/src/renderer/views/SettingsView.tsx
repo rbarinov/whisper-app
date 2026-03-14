@@ -212,7 +212,7 @@ export function SettingsView() {
     return (
       <div className="app-shell app-shell--flush">
         <div className="window-panel window-panel--flush">
-          <div className="window-content flex h-full items-center justify-center p-6">
+          <div className="window-content items-center justify-center p-6">
             <div className="section-card px-6 py-5 text-center">
               <p className="hero-kicker">Configuration</p>
               <p className="mt-3 text-sm text-[#4b5650]">Loading settings...</p>
@@ -233,7 +233,6 @@ export function SettingsView() {
     <div className="app-shell app-shell--flush">
       <div className="window-panel window-panel--flush">
         <div className="window-content">
-          <div className="flex h-full min-w-0 flex-col">
             <div className="px-4 pt-3">
               <WindowChrome label="Settings" />
             </div>
@@ -244,7 +243,7 @@ export function SettingsView() {
               </div>
             </header>
 
-            <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-4">
+            <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-4">
               <div className="mx-auto grid max-w-6xl gap-3 min-[980px]:grid-cols-[minmax(0,1.45fr)_minmax(17rem,0.8fr)]">
                 <section className="section-card p-3.5">
                   <div className="mb-2.5">
@@ -381,14 +380,15 @@ export function SettingsView() {
                         Optional cleanup step after Whisper transcription.
                       </p>
                     </div>
-                    <label className="flex items-center gap-3 rounded-full border border-[#15231e]/8 bg-white/70 px-3 py-2">
-                      <input
-                        type="checkbox"
-                        className="peer sr-only"
-                        checked={settings.llmPostProcessingEnabled}
-                        onChange={(e) => save({ ...settings, llmPostProcessingEnabled: e.target.checked })}
-                      />
-                      <span className="relative inline-flex h-7 w-12 items-center rounded-full bg-[#15231e]/10 transition-colors duration-200 peer-checked:bg-[#15231e]">
+                    <div
+                      role="switch"
+                      aria-checked={settings.llmPostProcessingEnabled}
+                      tabIndex={0}
+                      className="flex cursor-pointer items-center gap-3 rounded-full border border-[#15231e]/8 bg-white/70 px-3 py-2"
+                      onClick={() => save({ ...settings, llmPostProcessingEnabled: !settings.llmPostProcessingEnabled })}
+                      onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); save({ ...settings, llmPostProcessingEnabled: !settings.llmPostProcessingEnabled }); } }}
+                    >
+                      <span className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors duration-200 ${settings.llmPostProcessingEnabled ? 'bg-[#15231e]' : 'bg-[#15231e]/10'}`}>
                         <span
                           className={`absolute left-1 h-5 w-5 rounded-full bg-white shadow-[0_6px_14px_rgba(0,0,0,0.12)] transition-transform duration-200 ${
                             settings.llmPostProcessingEnabled ? 'translate-x-5' : ''
@@ -398,9 +398,8 @@ export function SettingsView() {
                       <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[#4b5650]">
                         {settings.llmPostProcessingEnabled ? 'Enabled' : 'Disabled'}
                       </span>
-                    </label>
+                    </div>
                   </div>
-
                   <div className="space-y-2.5">
                     <SettingsField label="LLM Model">
                       <input
@@ -463,7 +462,6 @@ export function SettingsView() {
                 <LegalNotice className="min-[980px]:col-span-2" />
               </div>
             </div>
-          </div>
         </div>
       </div>
     </div>
