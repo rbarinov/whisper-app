@@ -10,7 +10,7 @@ export type RecordingState =
   | { type: 'processing' }
   | { type: 'error'; message: string };
 
-export type TranscriptionStatus = 'transcribing' | 'successful' | 'failed' | 'cancelled';
+export type TranscriptionStatus = 'recording' | 'transcribing' | 'processing' | 'successful' | 'failed' | 'cancelled';
 
 export interface HotkeyModifiers {
   ctrl?: boolean;
