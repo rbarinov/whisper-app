@@ -13,9 +13,9 @@
     <key>CFBundleIdentifier</key>
     <string>com.whisperapp.WhisperApp</string>
     <key>CFBundleVersion</key>
-    <string>2.0.0</string>
+    <string>2.1.7</string>
     <key>CFBundleShortVersionString</key>
-    <string>2.0.0</string>
+    <string>2.1.7</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleExecutable</key>
