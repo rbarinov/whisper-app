@@ -54,7 +54,7 @@ export type OverlayState =
   | { type: 'hidden' }
   | { type: 'recording' }
   | { type: 'transcribing' }
-  | { type: 'processing' }
+  | { type: 'processing'; text?: string; reasoning?: string }
   | { type: 'done'; text: string }
   | { type: 'error'; message: string }
   | { type: 'cancelled' };

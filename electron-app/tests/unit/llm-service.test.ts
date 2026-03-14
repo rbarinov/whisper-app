@@ -149,8 +149,8 @@ describe('LLM Service', () => {
     expect(result).toBe('Processed text output');
   });
 
-  // Test 2: Request body contains reasoning_effort: 'low' (G14 CRITICAL)
-  it('should include reasoning_effort: low in request body (G14)', async () => {
+  // Test 2: Request body does NOT include reasoning_effort (unsupported by many providers)
+  it('should not include reasoning_effort in request body', async () => {
     let capturedBody = '';
     const { client } = createMockHttpClient((reqBody) => {
       capturedBody = reqBody;
@@ -161,7 +161,7 @@ describe('LLM Service', () => {
     await processWithLLM('test text', defaultSettings);
 
     const parsed = JSON.parse(capturedBody);
-    expect(parsed.reasoning_effort).toBe('low');
+    expect(parsed.reasoning_effort).toBeUndefined();
   });
 
   // Test 3: User message wraps text in <transcription> tags
