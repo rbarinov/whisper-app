@@ -1,10 +1,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { randomUUID } from 'crypto';
 import { MIN_RECORDING_DURATION_S } from '../shared/constants';
 import type { AppSettings, OverlayState, RecordingState, TranscriptionEntry } from '../shared/types';
 import {
-  addEntry,
   getEntries,
   getRecordingsDir,
   loadHistory,
@@ -33,6 +31,7 @@ export interface LifecycleContext {
   overlayState: OverlayState;
   history: TranscriptionEntry[];
   settings: AppSettings;
+  skipOverlay: boolean;
 
   applyRecordingState(state: RecordingState): void;
   broadcastStateUpdate(): void;
@@ -70,6 +69,14 @@ export async function runRecordingLifecycle(ctx: LifecycleContext): Promise<void
     );
 
     const relativeAudioPath = path.basename(recording.filePath);
+    // Persist audio metadata immediately so it survives cancellation during transcription/processing.
+    // Without this, cancelling mid-transcription would leave the entry without audioFilePath,
+    // hiding Play/Retry buttons in History even though the audio file exists on disk.
+    updateEntry(entryId, {
+      durationSeconds: recording.duration,
+      audioFilePath: relativeAudioPath,
+    });
+    ctx.history = loadHistory();
     console.log('[DEBUG] recording duration:', recording.duration, 'min required:', MIN_RECORDING_DURATION_S);
     if (recording.duration < MIN_RECORDING_DURATION_S) {
       updateEntry(entryId, {
@@ -145,11 +152,13 @@ export async function runRetryLifecycle(
     ctx.history = loadHistory();
     ctx.activeTranscriptionEntryId = null;
     ctx.recordingState = { type: 'error', message };
-    ctx.overlayState = { type: 'error', message };
     ctx.applyRecordingState(ctx.recordingState);
     ctx.broadcastStateUpdate();
-    ctx.broadcastOverlayUpdate(ctx.overlayState);
-    ctx.scheduleOverlayDismiss(ctx.overlayState);
+    if (!ctx.skipOverlay) {
+      ctx.overlayState = { type: 'error', message };
+      ctx.broadcastOverlayUpdate(ctx.overlayState);
+      ctx.scheduleOverlayDismiss(ctx.overlayState);
+    }
   } finally {
     ctx.currentAbortController = null;
   }
@@ -170,6 +179,13 @@ export async function runTranscriptionFromBuffer(
     signal: ctx.currentAbortController?.signal,
   });
 
+  // Persist rawText and audio metadata immediately so they survive cancellation
+  updateEntry(entryId, {
+    rawText,
+    ...entryAudioMetadata,
+  });
+  ctx.history = loadHistory();
+
   let finalText = rawText;
   let errorMessage: string | undefined;
 
@@ -181,10 +197,12 @@ export async function runTranscriptionFromBuffer(
     updateEntry(entryId, { status: 'processing' });
     ctx.history = loadHistory();
     ctx.recordingState = { type: 'processing' };
-    ctx.overlayState = { type: 'processing' };
     ctx.applyRecordingState(ctx.recordingState);
     ctx.broadcastStateUpdate();
-    ctx.broadcastOverlayUpdate(ctx.overlayState);
+    if (!ctx.skipOverlay) {
+      ctx.overlayState = { type: 'processing' };
+      ctx.broadcastOverlayUpdate(ctx.overlayState);
+    }
 
     let streamedText = '';
     let reasoningText = '';
@@ -198,13 +216,17 @@ export async function runTranscriptionFromBuffer(
         signal: ctx.currentAbortController?.signal,
         onReasoning: (token: string) => {
           reasoningText += token;
-          ctx.overlayState = { type: 'processing', reasoning: reasoningText };
-          ctx.broadcastOverlayUpdate(ctx.overlayState);
+          if (!ctx.skipOverlay) {
+            ctx.overlayState = { type: 'processing', reasoning: reasoningText };
+            ctx.broadcastOverlayUpdate(ctx.overlayState);
+          }
         },
         onToken: (token: string) => {
           streamedText += token;
-          ctx.overlayState = { type: 'processing', text: streamedText };
-          ctx.broadcastOverlayUpdate(ctx.overlayState);
+          if (!ctx.skipOverlay) {
+            ctx.overlayState = { type: 'processing', text: streamedText };
+            ctx.broadcastOverlayUpdate(ctx.overlayState);
+          }
         },
       });
     } catch (error) {
@@ -229,11 +251,13 @@ export async function runTranscriptionFromBuffer(
   ctx.history = loadHistory();
   ctx.activeTranscriptionEntryId = null;
   ctx.recordingState = { type: 'idle' };
-  ctx.overlayState = { type: 'done', text: finalText };
   ctx.applyRecordingState(ctx.recordingState);
   ctx.broadcastStateUpdate();
-  ctx.broadcastOverlayUpdate(ctx.overlayState);
-  ctx.scheduleOverlayDismiss(ctx.overlayState);
+  if (!ctx.skipOverlay) {
+    ctx.overlayState = { type: 'done', text: finalText };
+    ctx.broadcastOverlayUpdate(ctx.overlayState);
+    ctx.scheduleOverlayDismiss(ctx.overlayState);
+  }
 
   const pasteResult = await pasteText(finalText);
   if (pasteResult.method === 'clipboard-only' && pasteResult.message) {
@@ -279,15 +303,10 @@ export function cancelRecording(ctx: LifecycleContext): void {
     const entryId = ctx.activeTranscriptionEntryId;
 
     if (meetsMinDuration && entryId) {
-      if (ctx.lastRecordingBuffer) {
-        // Audio already available — persist immediately
-        persistCancelledRecordingForEntry(ctx.lastRecordingBuffer, recordingDurationMs / 1000, entryId);
-        ctx.history = loadHistory();
-      } else {
-        // Audio not yet received — defer to handleRecordingData
-        ctx.pendingCancelledDurationSeconds = recordingDurationMs / 1000;
-        ctx.pendingCancelledEntryId = entryId;
-      }
+      // Always defer to handleRecordingData — the renderer hasn't stopped recording yet,
+      // so lastRecordingBuffer (if set) contains STALE data from a previous recording.
+      ctx.pendingCancelledDurationSeconds = recordingDurationMs / 1000;
+      ctx.pendingCancelledEntryId = entryId;
     } else if (entryId) {
       // Too short — delete the recording entry
       try {
@@ -374,7 +393,7 @@ export function persistCancelledRecordingForEntry(
 }
 
 export interface RetryPreparation {
-  retryEntryId: string;
+  entryId: string;
   wavBuffer: Buffer;
   durationSeconds: number;
   audioFilePath: string;
@@ -382,11 +401,12 @@ export interface RetryPreparation {
 
 /**
  * Validate and prepare data for a retry transcription.
+ * Updates the existing entry to 'transcribing' status in-place.
  * Returns null if the entry is not eligible for retry.
  */
-export function prepareRetryTranscription(
+  export function prepareRetryTranscription(
   entryId: string
-): RetryPreparation | null {
+  ): RetryPreparation | null {
   const entry = getEntries().find((candidate) => candidate.id === entryId);
   if (!entry || !entry.audioFilePath || (entry.status !== 'failed' && entry.status !== 'cancelled')) {
     return null;
@@ -398,16 +418,15 @@ export function prepareRetryTranscription(
   }
 
   const wavBuffer = fs.readFileSync(audioPath);
-  const retryEntryId = randomUUID();
-  addEntry({
-    id: retryEntryId,
+
+  // Update the existing entry in-place — keep it visible in history
+  updateEntry(entryId, {
     status: 'transcribing',
-    durationSeconds: entry.durationSeconds,
-    audioFilePath: entry.audioFilePath,
+    errorMessage: undefined,
   });
 
   return {
-    retryEntryId,
+    entryId,
     wavBuffer,
     durationSeconds: entry.durationSeconds,
     audioFilePath: entry.audioFilePath,

@@ -187,6 +187,8 @@ export class AppStateManager {
     }
 
     this.recordingStartTime = Date.now();
+    // Clear stale buffer from any previous recording so it can't be mistakenly persisted
+    this.lastRecordingBuffer = null;
 
     // Create a history entry immediately so it appears in History view during recording
     const entryId = randomUUID();
@@ -263,15 +265,15 @@ export class AppStateManager {
     this.currentAbortController?.abort();
     this.currentAbortController = new AbortController();
 
-    this.activeTranscriptionEntryId = prep.retryEntryId;
+    this.activeTranscriptionEntryId = prep.entryId;
     this.recordingState = { type: 'transcribing' };
-    this.overlayState = { type: 'transcribing' };
     this.applyRecordingState(this.recordingState);
 
     this.broadcastStateUpdate();
-    this.broadcastOverlayUpdate(this.overlayState);
 
-    void runRetryLifecycle(this.lifecycleContext(), prep.retryEntryId, prep.wavBuffer, {
+    const ctx = this.lifecycleContext();
+    ctx.skipOverlay = true;
+    void runRetryLifecycle(ctx, prep.entryId, prep.wavBuffer, {
       durationSeconds: prep.durationSeconds,
       audioFilePath: prep.audioFilePath,
     });
@@ -301,6 +303,7 @@ export class AppStateManager {
       get history() { return self.history; },
       set history(v) { self.history = v; },
       get settings() { return self.settings; },
+      skipOverlay: false,
       applyRecordingState: (state) => this.applyRecordingState(state),
       broadcastStateUpdate: () => this.broadcastStateUpdate(),
       broadcastOverlayUpdate: (state) => this.broadcastOverlayUpdate(state),

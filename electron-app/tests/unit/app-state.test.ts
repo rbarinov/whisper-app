@@ -452,11 +452,14 @@ describe('AppStateManager', () => {
     const manager = new AppStateManager();
 
     manager.startRecording();
+    manager.cancelRecording();
+
+    // Simulate renderer sending audio data AFTER cancel (real flow:
+    // renderer sees state=idle → stops recording → sends audio data)
     manager.handleRecordingData({
       samples: new Float32Array([0.1, 0.2, 0.3]),
       inputSampleRate: 48000,
     });
-    manager.cancelRecording();
 
     expect(mockAddEntry).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -481,11 +484,14 @@ describe('AppStateManager', () => {
     const manager = new AppStateManager();
 
     manager.startRecording();
+    manager.cancelRecording();
+
+    // Renderer sends audio data after cancel, but since recording was too short,
+    // no pending cancel flags are set — audio is just stored in lastRecordingBuffer
     manager.handleRecordingData({
       samples: new Float32Array([0.1, 0.2]),
       inputSampleRate: 48000,
     });
-    manager.cancelRecording();
 
     expect(mockAddEntry).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -541,7 +547,7 @@ describe('AppStateManager', () => {
     expect(manager.getSnapshot().overlayState).toEqual({ type: 'cancelled' });
   });
 
-  it('retry from failed creates new successful entry', async () => {
+  it('retry from failed updates existing entry to successful', async () => {
     mockFsExistsSync.mockReturnValue(true);
     mockFsReadFileSync.mockReturnValue(Buffer.from('stored-wav'));
     mockGetEntries.mockReturnValue([
@@ -560,10 +566,15 @@ describe('AppStateManager', () => {
 
     await flushLifecycle();
 
-    const retryId = mockAddEntry.mock.calls[0][0].id as string;
-    expect(retryId).not.toBe('failed-1');
+    // Should update existing entry in-place, not create a new one
     expect(mockUpdateEntry).toHaveBeenCalledWith(
-      retryId,
+      'failed-1',
+      expect.objectContaining({
+        status: 'transcribing',
+      })
+    );
+    expect(mockUpdateEntry).toHaveBeenCalledWith(
+      'failed-1',
       expect.objectContaining({
         status: 'successful',
         text: 'retry text',
@@ -573,7 +584,7 @@ describe('AppStateManager', () => {
     );
   });
 
-  it('retry from cancelled creates new successful entry', async () => {
+  it('retry from cancelled updates existing entry to successful', async () => {
     mockFsExistsSync.mockReturnValue(true);
     mockFsReadFileSync.mockReturnValue(Buffer.from('stored-wav'));
     mockGetEntries.mockReturnValue([
@@ -592,10 +603,15 @@ describe('AppStateManager', () => {
 
     await flushLifecycle();
 
-    const retryId = mockAddEntry.mock.calls[0][0].id as string;
-    expect(retryId).not.toBe('cancelled-1');
+    // Should update existing entry in-place, not create a new one
     expect(mockUpdateEntry).toHaveBeenCalledWith(
-      retryId,
+      'cancelled-1',
+      expect.objectContaining({
+        status: 'transcribing',
+      })
+    );
+    expect(mockUpdateEntry).toHaveBeenCalledWith(
+      'cancelled-1',
       expect.objectContaining({
         status: 'successful',
         text: 'retry cancelled text',
