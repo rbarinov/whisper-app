@@ -20,7 +20,7 @@ test.describe('settings view', () => {
         cancelRecording: async () => undefined,
         sendRecordingData: () => undefined,
         getSettings: async () => ({
-          apiBaseURL: 'https://api.openai.com',
+          apiBaseURL: 'https://api.openai.com/v1',
           apiKey: 'sk-test',
           modelName: 'whisper-1',
           language: 'en',
@@ -29,7 +29,7 @@ test.describe('settings view', () => {
           llmPostProcessingEnabled: false,
           llmApiBaseURL: '',
           llmApiKey: '',
-          llmModelName: 'gpt-oss-20b',
+          llmModelName: 'gpt-5-nano',
           llmSystemPrompt: 'System prompt',
         }),
         saveSettings: async (settings: unknown) => {
@@ -72,7 +72,7 @@ test.describe('settings view', () => {
   });
 
   test('renders API URL and API key inputs', async ({ page }) => {
-    await expect(page.getByRole('textbox', { name: 'Base URL', exact: true })).toHaveValue('https://api.openai.com');
+    await expect(page.getByRole('textbox', { name: 'Base URL', exact: true })).toHaveValue('https://api.openai.com/v1');
     await expect(page.getByLabel('API Key', { exact: true })).toHaveValue('sk-test');
   });
 
@@ -96,7 +96,7 @@ test.describe('settings view', () => {
   });
 
   test('updates settings through saveSettings when edited', async ({ page }) => {
-    const apiUrlInput = page.getByPlaceholder('https://api.openai.com');
+    const apiUrlInput = page.getByPlaceholder('https://api.openai.com/v1');
     await apiUrlInput.fill('https://example.local');
 
     const saveCallCount = await page.evaluate(() => (window as Window & { __saveCalls?: unknown[] }).__saveCalls?.length ?? 0);

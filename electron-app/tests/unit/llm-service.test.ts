@@ -12,8 +12,8 @@ import {
 // Default test settings
 const defaultSettings: LLMSettings = {
   apiKey: 'sk-test-key-123',
-  apiBaseURL: 'https://api.openai.com',
-  llmModelName: 'gpt-oss-20b',
+  apiBaseURL: 'https://api.openai.com/v1',
+  llmModelName: 'gpt-5-nano',
   llmSystemPrompt: 'You are a post-processor.',
 };
 

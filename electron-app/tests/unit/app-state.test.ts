@@ -132,7 +132,7 @@ describe('AppStateManager', () => {
 
     const settings: AppSettings = {
       ...DEFAULT_SETTINGS,
-      apiBaseURL: 'https://api.openai.com',
+      apiBaseURL: 'https://api.openai.com/v1',
       apiKey: 'test-key',
       modelName: 'whisper-1',
       language: '',
@@ -147,7 +147,7 @@ describe('AppStateManager', () => {
         modifiers: undefined,
       },
       llmPostProcessingEnabled: false,
-      llmModelName: 'gpt-oss-20b',
+      llmModelName: 'gpt-5-nano',
       llmSystemPrompt: 'prompt',
     };
 
@@ -250,7 +250,7 @@ describe('AppStateManager', () => {
     expect(mockTranscribe).toHaveBeenCalledWith(
       expect.any(Buffer),
       expect.objectContaining({
-        apiBaseURL: 'https://api.openai.com',
+        apiBaseURL: 'https://api.openai.com/v1',
         apiKey: 'test-key',
         modelName: 'whisper-1',
         language: '',
@@ -274,7 +274,7 @@ describe('AppStateManager', () => {
   it('runs full flow with LLM enabled: transcribe -> process -> paste processed text', async () => {
     mockLoadSettings.mockReturnValue({
       ...DEFAULT_SETTINGS,
-      apiBaseURL: 'https://api.openai.com',
+      apiBaseURL: 'https://api.openai.com/v1',
       apiKey: 'test-key',
       modelName: 'whisper-1',
       language: '',
@@ -289,7 +289,7 @@ describe('AppStateManager', () => {
         modifiers: undefined,
       },
       llmPostProcessingEnabled: true,
-      llmModelName: 'gpt-oss-20b',
+      llmModelName: 'gpt-5-nano',
       llmSystemPrompt: 'prompt',
     });
 
@@ -314,9 +314,9 @@ describe('AppStateManager', () => {
     expect(mockProcessWithLLM).toHaveBeenCalledWith(
       'raw text',
       expect.objectContaining({
-        apiBaseURL: 'https://api.openai.com',
+        apiBaseURL: 'https://api.openai.com/v1',
         apiKey: 'test-key',
-        llmModelName: 'gpt-oss-20b',
+        llmModelName: 'gpt-5-nano',
         llmSystemPrompt: 'prompt',
       }),
       expect.objectContaining({ signal: expect.any(AbortSignal) })
@@ -347,7 +347,7 @@ describe('AppStateManager', () => {
   it('uses custom LLM credentials when they are configured', async () => {
     mockLoadSettings.mockReturnValue({
       ...DEFAULT_SETTINGS,
-      apiBaseURL: 'https://api.openai.com',
+      apiBaseURL: 'https://api.openai.com/v1',
       apiKey: 'test-key',
       modelName: 'whisper-1',
       language: '',
@@ -364,7 +364,7 @@ describe('AppStateManager', () => {
       llmPostProcessingEnabled: true,
       llmApiBaseURL: 'https://llm.example.com',
       llmApiKey: 'llm-key',
-      llmModelName: 'gpt-oss-20b',
+      llmModelName: 'gpt-5-nano',
       llmSystemPrompt: 'prompt',
     });
 
@@ -392,7 +392,7 @@ describe('AppStateManager', () => {
   it('falls back to raw text when LLM fails and stores LLM error message', async () => {
     mockLoadSettings.mockReturnValue({
       ...DEFAULT_SETTINGS,
-      apiBaseURL: 'https://api.openai.com',
+      apiBaseURL: 'https://api.openai.com/v1',
       apiKey: 'test-key',
       modelName: 'whisper-1',
       language: '',
@@ -407,7 +407,7 @@ describe('AppStateManager', () => {
         modifiers: undefined,
       },
       llmPostProcessingEnabled: true,
-      llmModelName: 'gpt-oss-20b',
+      llmModelName: 'gpt-5-nano',
       llmSystemPrompt: 'prompt',
     });
     mockProcessWithLLM.mockRejectedValueOnce(new Error('model overload'));

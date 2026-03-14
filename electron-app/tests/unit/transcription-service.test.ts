@@ -15,7 +15,7 @@ import {
 // Default test settings
 const defaultSettings: TranscriptionSettings = {
   apiKey: 'sk-test-key-123',
-  apiBaseURL: 'https://api.openai.com',
+  apiBaseURL: 'https://api.openai.com/v1',
   modelName: 'whisper-1',
   language: '',
 };
