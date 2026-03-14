@@ -112,11 +112,11 @@ function HistoryRow({
                 Retry
               </button>
             )}
-            {entry.status === 'successful' && entry.text && (
+            {(entry.status === 'successful' || ((entry.status === 'cancelled' || entry.status === 'failed') && entry.rawText)) && (
               <button
                 type="button"
                 className="action-chip action-chip--accent"
-                onClick={() => handleCopy(entry.text ?? '')}
+                onClick={() => handleCopy(entry.text ?? entry.rawText ?? '')}
               >
                 {copied ? 'Copied' : 'Copy'}
               </button>
@@ -165,12 +165,28 @@ function HistoryRow({
             </div>
           )}
           {entry.status === 'failed' && (
-            <p className="text-sm leading-6 text-[#b45347]">
-              Transcription failed{entry.errorMessage ? `: ${entry.errorMessage}` : ''}
-            </p>
+            <div className="space-y-2">
+              <p className="text-sm leading-6 text-[#b45347]">
+                Transcription failed{entry.errorMessage ? `: ${entry.errorMessage}` : ''}
+              </p>
+              {entry.rawText && (
+                <div className="rounded-[14px] border border-[#15231e]/8 bg-white/60 px-3 py-2.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#6b746f]">Transcription</p>
+                  <p className="mt-1.5 clamp-3 text-[13px] leading-5 text-[#5f6964]">{entry.rawText}</p>
+                </div>
+              )}
+            </div>
           )}
           {entry.status === 'cancelled' && (
-            <p className="text-sm leading-6 text-[#6b746f]">Recording cancelled</p>
+            <div className="space-y-2">
+              <p className="text-sm leading-6 text-[#6b746f]">Recording cancelled</p>
+              {entry.rawText && (
+                <div className="rounded-[14px] border border-[#15231e]/8 bg-white/60 px-3 py-2.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#6b746f]">Transcription</p>
+                  <p className="mt-1.5 clamp-3 text-[13px] leading-5 text-[#5f6964]">{entry.rawText}</p>
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>
