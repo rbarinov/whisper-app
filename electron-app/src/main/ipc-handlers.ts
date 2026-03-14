@@ -10,6 +10,7 @@ let settingsWindow: BrowserWindow | null = null;
 let historyWindow: BrowserWindow | null = null;
 let onboardingWindow: BrowserWindow | null = null;
 let overlayWindow: BrowserWindow | null = null;
+let appStateRef: AppStateManager | null = null;
 
 function buildFramelessWindowOptions() {
   return {
@@ -43,6 +44,7 @@ export function openOnboardingWindow(onClosed?: () => void): BrowserWindow {
   });
 
   trackWindowForDock(onboardingWindow);
+  appStateRef?.trackStateWindow(onboardingWindow);
   onboardingWindow.on('closed', () => {
     onboardingWindow = null;
     onClosed?.();
@@ -69,6 +71,7 @@ export function openSettingsWindow(): void {
     query: { view: 'settings' },
   });
   trackWindowForDock(settingsWindow);
+  appStateRef?.trackStateWindow(settingsWindow);
   settingsWindow.on('closed', () => {
     settingsWindow = null;
   });
@@ -92,6 +95,7 @@ export function openHistoryWindow(): void {
     query: { view: 'history' },
   });
   trackWindowForDock(historyWindow);
+  appStateRef?.trackStateWindow(historyWindow);
   historyWindow.on('closed', () => {
     historyWindow = null;
   });
@@ -152,6 +156,7 @@ export function createOverlayWindow(): BrowserWindow {
 }
 
 export function registerIpcHandlers(appState: AppStateManager): void {
+  appStateRef = appState;
   ipcMain.handle(IPC.START_RECORDING, async () => {
     appState.startRecording();
   });

@@ -53,23 +53,46 @@ export function loadHistory(): TranscriptionEntry[] {
       status: (entry.status ?? 'successful') as TranscriptionStatus,
     }));
 
-    // Crash recovery: mark interrupted entries as failed
-    entries = entries.map((entry) => {
-      if (entry.status === 'transcribing') {
-        return {
-          ...entry,
-          status: 'failed' as const,
-          errorMessage: 'Interrupted by app restart',
-        };
-      }
-      return entry;
-    });
+    // Crash recovery is handled once at startup via recoverInterruptedEntries().
+    // loadHistory() returns raw data without modifying in-progress entries.
 
     return entries;
   } catch (error) {
     // On any error (file not found, invalid JSON, etc.), return empty array
     console.error('Failed to load history:', error);
     return [];
+  }
+}
+
+/**
+ * Crash recovery: run once at app startup.
+ * Removes 'recording' entries (no useful data — recording was interrupted before any audio was saved).
+ * Marks 'transcribing' and 'processing' entries as 'failed' (had audio but were interrupted mid-pipeline).
+ * Persists the cleaned-up state to disk.
+ */
+export function recoverInterruptedEntries(): void {
+  let entries = loadHistory();
+  const originalLength = entries.length;
+
+  // Remove recording entries — they have no audio file
+  entries = entries.filter((entry) => entry.status !== 'recording');
+
+  // Mark transcribing/processing as failed
+  let modified = entries.length !== originalLength;
+  entries = entries.map((entry) => {
+    if (entry.status === 'transcribing' || entry.status === 'processing') {
+      modified = true;
+      return {
+        ...entry,
+        status: 'failed' as const,
+        errorMessage: 'Interrupted by app restart',
+      };
+    }
+    return entry;
+  });
+
+  if (modified) {
+    saveHistory(entries);
   }
 }
 

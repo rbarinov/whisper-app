@@ -27,6 +27,7 @@ export interface LifecycleContext {
   lastRecordingBuffer: Buffer | null;
   recordingStartTime: number | null;
   pendingCancelledDurationSeconds: number | null;
+  pendingCancelledEntryId: string | null;
   pendingRecordingData: PendingRecordingData | null;
   recordingState: RecordingState;
   overlayState: OverlayState;
@@ -47,9 +48,10 @@ export interface PendingRecordingData {
 }
 
 export async function runRecordingLifecycle(ctx: LifecycleContext): Promise<void> {
-  const entryId = randomUUID();
-  ctx.activeTranscriptionEntryId = entryId;
-  addEntry({ id: entryId, status: 'transcribing' });
+  // Entry was already created with 'recording' status in startRecording().
+  // Reuse the existing entry ID and transition it to 'transcribing'.
+  const entryId = ctx.activeTranscriptionEntryId!;
+  updateEntry(entryId, { status: 'transcribing' });
   ctx.history = loadHistory();
   ctx.broadcastStateUpdate();
 
@@ -176,6 +178,8 @@ export async function runTranscriptionFromBuffer(
   }
 
   if (ctx.settings.llmPostProcessingEnabled) {
+    updateEntry(entryId, { status: 'processing' });
+    ctx.history = loadHistory();
     ctx.recordingState = { type: 'processing' };
     ctx.overlayState = { type: 'processing' };
     ctx.applyRecordingState(ctx.recordingState);
@@ -242,13 +246,14 @@ export function handleRecordingData(ctx: LifecycleContext, data: RendererRecordi
     const wavBuffer = encodeWAV(data.samples, data.inputSampleRate);
     ctx.lastRecordingBuffer = wavBuffer;
 
-    if (ctx.pendingCancelledDurationSeconds !== null) {
-      const didPersist = persistCancelledRecording(wavBuffer, ctx.pendingCancelledDurationSeconds);
+    if (ctx.pendingCancelledDurationSeconds !== null && ctx.pendingCancelledEntryId !== null) {
+      const didPersist = persistCancelledRecordingForEntry(wavBuffer, ctx.pendingCancelledDurationSeconds, ctx.pendingCancelledEntryId);
       if (didPersist) {
         ctx.history = loadHistory();
         ctx.broadcastStateUpdate();
       }
       ctx.pendingCancelledDurationSeconds = null;
+      ctx.pendingCancelledEntryId = null;
     }
   }
 
@@ -271,15 +276,24 @@ export function cancelRecording(ctx: LifecycleContext): void {
     const recordingDurationMs =
       ctx.recordingStartTime === null ? 0 : Math.max(0, Date.now() - ctx.recordingStartTime);
     const meetsMinDuration = recordingDurationMs >= MIN_RECORDING_DURATION_S * 1000;
+    const entryId = ctx.activeTranscriptionEntryId;
 
-    ctx.pendingCancelledDurationSeconds = meetsMinDuration ? recordingDurationMs / 1000 : null;
-
-    if (meetsMinDuration && ctx.lastRecordingBuffer) {
-      const didPersist = persistCancelledRecording(ctx.lastRecordingBuffer, recordingDurationMs / 1000);
-      if (didPersist) {
+    if (meetsMinDuration && entryId) {
+      if (ctx.lastRecordingBuffer) {
+        // Audio already available — persist immediately
+        persistCancelledRecordingForEntry(ctx.lastRecordingBuffer, recordingDurationMs / 1000, entryId);
         ctx.history = loadHistory();
+      } else {
+        // Audio not yet received — defer to handleRecordingData
+        ctx.pendingCancelledDurationSeconds = recordingDurationMs / 1000;
+        ctx.pendingCancelledEntryId = entryId;
       }
-      ctx.pendingCancelledDurationSeconds = null;
+    } else if (entryId) {
+      // Too short — delete the recording entry
+      try {
+        updateEntry(entryId, { status: 'cancelled' });
+        ctx.history = loadHistory();
+      } catch (e) { console.error('Failed to update short cancelled entry:', e); }
     }
 
     ctx.lastRecordingBuffer = null;
@@ -334,21 +348,20 @@ export function waitForRecordingData(ctx: LifecycleContext): Promise<RendererRec
 }
 
 /**
- * Persist a cancelled recording to disk and history.
- * Shared by handleRecordingData and cancelRecording in AppStateManager.
+ * Persist a cancelled recording to disk and update an existing history entry.
+ * Used when the entry was already created by startRecording().
  */
-export function persistCancelledRecording(
+export function persistCancelledRecordingForEntry(
   wavBuffer: Buffer,
-  durationSeconds: number
+  durationSeconds: number,
+  entryId: string
 ): boolean {
-  const entryId = randomUUID();
   const relativeAudioPath = `${entryId}.wav`;
   const absoluteAudioPath = path.join(getRecordingsDir(), relativeAudioPath);
   try {
     fs.mkdirSync(getRecordingsDir(), { recursive: true });
     fs.writeFileSync(absoluteAudioPath, wavBuffer);
-    addEntry({
-      id: entryId,
+    updateEntry(entryId, {
       status: 'cancelled',
       durationSeconds,
       audioFilePath: relativeAudioPath,

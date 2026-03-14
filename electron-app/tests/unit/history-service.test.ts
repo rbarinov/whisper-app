@@ -21,6 +21,7 @@ import {
   deleteEntry,
   clearAllHistory,
   getRecordingsDir,
+  recoverInterruptedEntries,
 } from '../../src/main/services/history-service';
 import { app } from 'electron';
 
@@ -83,7 +84,7 @@ describe('history-service', () => {
       expect(result[0].status).toBe('successful');
     });
 
-    it('performs crash recovery: transcribing entries become failed', () => {
+    it('loadHistory returns in-progress entries as-is (no crash recovery)', () => {
       const entries: TranscriptionEntry[] = [
         {
           id: 'entry-1',
@@ -94,9 +95,8 @@ describe('history-service', () => {
         {
           id: 'entry-2',
           timestamp: '2026-03-11T10:01:00Z',
-          durationSeconds: 3,
-          status: 'successful',
-          text: 'Done',
+          durationSeconds: 0,
+          status: 'recording',
         },
       ];
 
@@ -105,9 +105,9 @@ describe('history-service', () => {
       fs.writeFileSync(historyPath, JSON.stringify(entries), 'utf-8');
 
       const result = loadHistory();
-      expect(result[0].status).toBe('failed');
-      expect(result[0].errorMessage).toBe('Interrupted by app restart');
-      expect(result[1].status).toBe('successful');
+      expect(result).toHaveLength(2);
+      expect(result[0].status).toBe('transcribing');
+      expect(result[1].status).toBe('recording');
     });
 
     it('returns empty array on JSON parse error', () => {
@@ -333,6 +333,77 @@ describe('history-service', () => {
     it('returns recordings directory path within userData', () => {
       const recordingsDir = getRecordingsDir();
       expect(recordingsDir).toBe(path.join(tempDir, 'recordings'));
+    });
+  });
+
+  describe('recoverInterruptedEntries', () => {
+    it('removes recording entries and marks transcribing/processing as failed', () => {
+      const entries: TranscriptionEntry[] = [
+        {
+          id: 'entry-1',
+          timestamp: '2026-03-11T10:00:00Z',
+          durationSeconds: 5,
+          status: 'transcribing',
+        },
+        {
+          id: 'entry-2',
+          timestamp: '2026-03-11T10:01:00Z',
+          durationSeconds: 3,
+          status: 'successful',
+          text: 'Done',
+        },
+        {
+          id: 'entry-3',
+          timestamp: '2026-03-11T10:02:00Z',
+          durationSeconds: 0,
+          status: 'recording',
+        },
+        {
+          id: 'entry-4',
+          timestamp: '2026-03-11T10:03:00Z',
+          durationSeconds: 4,
+          status: 'processing',
+        },
+      ];
+
+      const historyPath = path.join(tempDir, 'history.json');
+      fs.mkdirSync(path.dirname(historyPath), { recursive: true });
+      fs.writeFileSync(historyPath, JSON.stringify(entries), 'utf-8');
+
+      recoverInterruptedEntries();
+
+      const result = loadHistory();
+      expect(result).toHaveLength(3);
+      expect(result[0].id).toBe('entry-1');
+      expect(result[0].status).toBe('failed');
+      expect(result[0].errorMessage).toBe('Interrupted by app restart');
+      expect(result[1].id).toBe('entry-2');
+      expect(result[1].status).toBe('successful');
+      expect(result[2].id).toBe('entry-4');
+      expect(result[2].status).toBe('failed');
+      expect(result[2].errorMessage).toBe('Interrupted by app restart');
+    });
+
+    it('does nothing when no interrupted entries exist', () => {
+      const entries: TranscriptionEntry[] = [
+        {
+          id: 'entry-1',
+          timestamp: '2026-03-11T10:00:00Z',
+          durationSeconds: 3,
+          status: 'successful',
+          text: 'Hello',
+        },
+      ];
+
+      const historyPath = path.join(tempDir, 'history.json');
+      fs.mkdirSync(path.dirname(historyPath), { recursive: true });
+      fs.writeFileSync(historyPath, JSON.stringify(entries), 'utf-8');
+
+      recoverInterruptedEntries();
+
+      const result = loadHistory();
+      expect(result).toHaveLength(1);
+      expect(result[0].status).toBe('successful');
     });
   });
 });

@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { BrowserWindow, systemPreferences } from 'electron';
 import {
   DEFAULT_SETTINGS,
@@ -16,9 +17,11 @@ import type {
 } from '../shared/types';
 import { audioPlayerService } from './services/audio-player-service';
 import {
+  addEntry,
   clearAllHistory,
   deleteEntry,
   loadHistory,
+  recoverInterruptedEntries,
 } from './services/history-service';
 import { HotkeyManager } from './services/hotkey-manager';
 import { isWaylandSession } from './services/paste-service';
@@ -55,12 +58,14 @@ export class AppStateManager {
   private lastRecordingBuffer: Buffer | null = null;
   private recordingStartTime: number | null = null;
   private pendingCancelledDurationSeconds: number | null = null;
+  private pendingCancelledEntryId: string | null = null;
   private pendingRecordingData: PendingRecordingData | null = null;
   private hotkeyManager: HotkeyManager;
   private mainWindow: BrowserWindow | null = null;
   private overlayWindow: BrowserWindow | null = null;
   private overlayDismissTimer: NodeJS.Timeout | null = null;
   private recordingStateListener: ((state: RecordingState) => void) | null = null;
+  private stateWindows = new Set<BrowserWindow>();
 
   private hasMacOSMicApi(): boolean {
     return (
@@ -77,6 +82,7 @@ export class AppStateManager {
   }
   constructor() {
     this.settings = loadSettings() ?? DEFAULT_SETTINGS;
+    recoverInterruptedEntries();
     this.history = loadHistory();
     this.hotkeyManager = new HotkeyManager(
       this.settings.hotkeyConfig.keyCode,
@@ -88,9 +94,15 @@ export class AppStateManager {
   }
   setMainWindow(win: BrowserWindow): void {
     this.mainWindow = win;
+    this.trackStateWindow(win);
   }
   setOverlayWindow(win: BrowserWindow): void {
     this.overlayWindow = win;
+  }
+  /** Register a window to receive STATE_UPDATE broadcasts. Automatically unregisters on close. */
+  trackStateWindow(win: BrowserWindow): void {
+    this.stateWindows.add(win);
+    win.on('closed', () => { this.stateWindows.delete(win); });
   }
   initialize(options?: { startHotkeyManager?: boolean }): void {
     const permissionSnapshot = this.checkPermissions();
@@ -175,6 +187,13 @@ export class AppStateManager {
     }
 
     this.recordingStartTime = Date.now();
+
+    // Create a history entry immediately so it appears in History view during recording
+    const entryId = randomUUID();
+    this.activeTranscriptionEntryId = entryId;
+    addEntry({ id: entryId, status: 'recording' });
+    this.history = loadHistory();
+
     this.recordingState = { type: 'recording' };
     this.overlayState = { type: 'recording' };
     this.applyRecordingState(this.recordingState);
@@ -211,7 +230,7 @@ export class AppStateManager {
     this.recordingStartTime = null;
     this.recordingState = { type: 'transcribing' };
     this.overlayState = { type: 'transcribing' };
-    this.activeTranscriptionEntryId = 'pending';
+    // activeTranscriptionEntryId is already set from startRecording() — keep it
     this.applyRecordingState(this.recordingState);
 
     this.broadcastStateUpdate();
@@ -271,6 +290,8 @@ export class AppStateManager {
       set recordingStartTime(v) { self.recordingStartTime = v; },
       get pendingCancelledDurationSeconds() { return self.pendingCancelledDurationSeconds; },
       set pendingCancelledDurationSeconds(v) { self.pendingCancelledDurationSeconds = v; },
+      get pendingCancelledEntryId() { return self.pendingCancelledEntryId; },
+      set pendingCancelledEntryId(v) { self.pendingCancelledEntryId = v; },
       get pendingRecordingData() { return self.pendingRecordingData; },
       set pendingRecordingData(v) { self.pendingRecordingData = v; },
       get recordingState() { return self.recordingState; },
@@ -361,11 +382,15 @@ export class AppStateManager {
   }
 
   private broadcastStateUpdate(): void {
-    if (!this.mainWindow || this.mainWindow.isDestroyed()) {
-      return;
-    }
+    const snapshot = this.getSnapshot();
 
-    this.mainWindow.webContents.send(IPC.STATE_UPDATE, this.getSnapshot());
+    for (const win of this.stateWindows) {
+      if (win.isDestroyed()) {
+        this.stateWindows.delete(win);
+        continue;
+      }
+      win.webContents.send(IPC.STATE_UPDATE, snapshot);
+    }
   }
 
   private broadcastOverlayUpdate(state: OverlayState): void {

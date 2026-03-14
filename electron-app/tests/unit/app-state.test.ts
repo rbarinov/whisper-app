@@ -69,6 +69,7 @@ vi.mock('../../src/main/services/history-service', () => ({
   getRecordingsDir: mockGetRecordingsDir,
   updateEntry: mockUpdateEntry,
   getEntries: mockGetEntries,
+  recoverInterruptedEntries: vi.fn(),
 }));
 
 vi.mock('../../src/main/services/audio-player-service', () => ({
@@ -190,6 +191,7 @@ describe('AppStateManager', () => {
 
     const mainWindow = {
       isDestroyed: () => false,
+      on: vi.fn(),
       webContents: {
         send,
       },
@@ -242,6 +244,12 @@ describe('AppStateManager', () => {
     await flushLifecycle();
 
     expect(mockAddEntry).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'recording',
+      })
+    );
+    expect(mockUpdateEntry).toHaveBeenCalledWith(
+      expect.any(String),
       expect.objectContaining({
         status: 'transcribing',
       })
@@ -452,6 +460,12 @@ describe('AppStateManager', () => {
 
     expect(mockAddEntry).toHaveBeenCalledWith(
       expect.objectContaining({
+        status: 'recording',
+      })
+    );
+    expect(mockUpdateEntry).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
         status: 'cancelled',
         audioFilePath: expect.stringMatching(/\.wav$/),
       })
@@ -473,7 +487,17 @@ describe('AppStateManager', () => {
     });
     manager.cancelRecording();
 
-    expect(mockAddEntry).not.toHaveBeenCalled();
+    expect(mockAddEntry).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'recording',
+      })
+    );
+    expect(mockUpdateEntry).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        status: 'cancelled',
+      })
+    );
     expect(manager.getSnapshot().recordingState).toEqual({ type: 'idle' });
     expect(manager.getSnapshot().overlayState).toEqual({ type: 'cancelled' });
   });
