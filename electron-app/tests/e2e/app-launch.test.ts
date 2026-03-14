@@ -21,7 +21,7 @@ test.describe('renderer app launch', () => {
         cancelRecording: async () => undefined,
         sendRecordingData: () => undefined,
         getSettings: async () => ({
-          apiBaseURL: 'https://api.openai.com',
+          apiBaseURL: 'https://api.openai.com/v1',
           apiKey: '',
           modelName: 'whisper-1',
           language: '',
@@ -30,7 +30,7 @@ test.describe('renderer app launch', () => {
           llmPostProcessingEnabled: false,
           llmApiBaseURL: '',
           llmApiKey: '',
-          llmModelName: 'gpt-oss-20b',
+          llmModelName: 'gpt-5-nano',
           llmSystemPrompt: 'prompt',
         }),
         saveSettings: async () => undefined,

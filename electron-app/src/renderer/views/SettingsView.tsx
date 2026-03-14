@@ -255,7 +255,7 @@ export function SettingsView() {
                       <input
                         type="text"
                         className="field-control text-sm"
-                        placeholder="https://api.openai.com"
+                        placeholder="https://api.openai.com/v1"
                         value={settings.apiBaseURL}
                         onChange={(e) => save({ ...settings, apiBaseURL: e.target.value })}
                       />

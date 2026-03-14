@@ -83,7 +83,7 @@ export async function processWithLLM(
   const baseURL = settings.apiBaseURL.replace(/\/+$/, '');
   let url: URL;
   try {
-    url = new URL(`${baseURL}/v1/chat/completions`);
+    url = new URL(`${baseURL}/chat/completions`);
   } catch {
     throw new LLMError('Invalid API base URL. Check Settings.', 'INVALID_URL');
   }
@@ -270,7 +270,7 @@ export async function processWithLLMStream(
   const baseURL = settings.apiBaseURL.replace(/\/+$/, '');
   let url: URL;
   try {
-    url = new URL(`${baseURL}/v1/chat/completions`);
+    url = new URL(`${baseURL}/chat/completions`);
   } catch {
     throw new LLMError('Invalid API base URL. Check Settings.', 'INVALID_URL');
   }

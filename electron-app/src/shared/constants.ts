@@ -6,9 +6,9 @@
 import type { AppSettings } from './types';
 
 // API defaults — must match AppSettings.swift
-export const DEFAULT_API_BASE_URL = 'https://api.openai.com';
+export const DEFAULT_API_BASE_URL = 'https://api.openai.com/v1';
 export const DEFAULT_MODEL_NAME = 'whisper-1';
-export const DEFAULT_LLM_MODEL_NAME = 'gpt-oss-20b';
+export const DEFAULT_LLM_MODEL_NAME = 'gpt-5-nano';
 
 // LLM System Prompt — EXACT copy from AppSettings.swift defaultLLMSystemPrompt
 export const DEFAULT_LLM_SYSTEM_PROMPT = `You are a post-processor of transcribed audio. Your primary goal is to receive the transcribed text and fix the errors, mistyped words, and translate the text to English. Respond only with the final post-processed text.

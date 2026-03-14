@@ -124,7 +124,7 @@ export async function transcribe(
   const baseURL = settings.apiBaseURL.replace(/\/+$/, '');
   let url: URL;
   try {
-    url = new URL(`${baseURL}/v1/audio/transcriptions`);
+    url = new URL(`${baseURL}/audio/transcriptions`);
   } catch {
     throw new TranscriptionError('Invalid API base URL. Check Settings.', 'INVALID_URL');
   }
