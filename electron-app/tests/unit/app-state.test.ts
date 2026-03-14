@@ -101,7 +101,7 @@ vi.mock('../../src/main/services/audio-recorder', () => ({
 }));
 
 vi.mock('../../src/main/services/llm-service', () => ({
-  processWithLLM: mockProcessWithLLM,
+  processWithLLMStream: mockProcessWithLLM,
 }));
 
 vi.mock('../../src/main/services/transcription-service', () => ({
@@ -462,8 +462,7 @@ describe('AppStateManager', () => {
 
   it('cancel during recording <0.5s does not create entry', () => {
     const nowSpy = vi.spyOn(Date, 'now');
-    nowSpy.mockReturnValueOnce(1000);
-    nowSpy.mockReturnValueOnce(1200);
+    nowSpy.mockReturnValue(1000).mockReturnValueOnce(1000).mockReturnValueOnce(1200);
 
     const manager = new AppStateManager();
 

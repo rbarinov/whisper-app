@@ -11,7 +11,7 @@ import {
   updateEntry,
 } from './services/history-service';
 import { encodeWAV, saveRecording } from './services/audio-recorder';
-import { processWithLLM } from './services/llm-service';
+import { processWithLLMStream } from './services/llm-service';
 import { pasteText } from './services/paste-service';
 import { transcribe } from './services/transcription-service';
 
@@ -58,6 +58,7 @@ export async function runRecordingLifecycle(ctx: LifecycleContext): Promise<void
 
   try {
     const recordingData = await waitForRecordingData(ctx);
+    console.log('[DEBUG] got recording data, samples:', recordingData.samples.length, 'sampleRate:', recordingData.inputSampleRate);
     const wavBuffer = encodeWAV(recordingData.samples, recordingData.inputSampleRate);
     ctx.lastRecordingBuffer = wavBuffer;
     const recording = await saveRecording(
@@ -67,6 +68,7 @@ export async function runRecordingLifecycle(ctx: LifecycleContext): Promise<void
     );
 
     const relativeAudioPath = path.basename(recording.filePath);
+    console.log('[DEBUG] recording duration:', recording.duration, 'min required:', MIN_RECORDING_DURATION_S);
     if (recording.duration < MIN_RECORDING_DURATION_S) {
       updateEntry(entryId, {
         status: 'cancelled',
@@ -89,6 +91,7 @@ export async function runRecordingLifecycle(ctx: LifecycleContext): Promise<void
       audioFilePath: relativeAudioPath,
     });
   } catch (error) {
+    console.log('[DEBUG] runRecordingLifecycle caught error:', error);
     if (ctx.activeTranscriptionEntryId !== entryId) {
       ctx.history = loadHistory();
       return;
@@ -179,14 +182,26 @@ export async function runTranscriptionFromBuffer(
     ctx.broadcastStateUpdate();
     ctx.broadcastOverlayUpdate(ctx.overlayState);
 
+    let streamedText = '';
+    let reasoningText = '';
     try {
-      finalText = await processWithLLM(rawText, {
+      finalText = await processWithLLMStream(rawText, {
         apiBaseURL: ctx.settings.llmApiBaseURL.trim() || ctx.settings.apiBaseURL,
         apiKey: ctx.settings.llmApiKey.trim() || ctx.settings.apiKey,
         llmModelName: ctx.settings.llmModelName,
         llmSystemPrompt: ctx.settings.llmSystemPrompt,
       }, {
         signal: ctx.currentAbortController?.signal,
+        onReasoning: (token: string) => {
+          reasoningText += token;
+          ctx.overlayState = { type: 'processing', reasoning: reasoningText };
+          ctx.broadcastOverlayUpdate(ctx.overlayState);
+        },
+        onToken: (token: string) => {
+          streamedText += token;
+          ctx.overlayState = { type: 'processing', text: streamedText };
+          ctx.broadcastOverlayUpdate(ctx.overlayState);
+        },
       });
     } catch (error) {
       finalText = rawText;
