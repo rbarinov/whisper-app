@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Button } from '../components/Button';
-import { LegalNotice } from '../components/LegalNotice';
 import { WindowChrome } from '../components/WindowChrome';
+import type { AppSettings } from '../../shared/types';
+import { DEFAULT_API_BASE_URL } from '../../shared/constants';
 
 type PermissionState = {
   microphone: 'granted' | 'denied' | 'not-determined';
@@ -12,6 +13,8 @@ const DEFAULT_PERMISSIONS: PermissionState = {
   microphone: 'not-determined',
   accessibility: false,
 };
+
+/* ── Preserved components for Task 6 ──────────────────────────── */
 
 function PermissionIcon({ kind }: { kind: 'microphone' | 'accessibility' }) {
   if (kind === 'microphone') {
@@ -92,10 +95,57 @@ function PermissionCard({
   );
 }
 
+/* ── Wizard step definitions ──────────────────────────────────── */
+
+type StepId = 'mic' | 'accessibility' | 'stt' | 'done';
+
+const isMac = navigator.platform.includes('Mac');
+const STEPS: StepId[] = isMac ? ['mic', 'accessibility', 'stt', 'done'] : ['stt', 'done'];
+
+/* ── Step indicator dots ──────────────────────────────────────── */
+
+function StepIndicator({ steps, currentStep }: { steps: StepId[]; currentStep: number }) {
+  return (
+    <div className="flex items-center justify-center gap-2 py-3">
+      {steps.map((stepId, i) => (
+        <div
+          key={stepId}
+          className={`h-2 w-2 rounded-full transition-all duration-300 ${
+            i <= currentStep
+              ? 'bg-[#15231e] scale-100'
+              : 'bg-[#15231e]/15 scale-90'
+          }`}
+        />
+      ))}
+    </div>
+  );
+}
+
+/* ── Main OnboardingView ──────────────────────────────────────── */
+
 export function OnboardingView() {
+  const [currentStep, setCurrentStep] = useState(0);
   const [permissions, setPermissions] = useState<PermissionState>(DEFAULT_PERMISSIONS);
   const [isPollingAccessibility, setIsPollingAccessibility] = useState(false);
   const [hasRequestedAccessibilityPrompt, setHasRequestedAccessibilityPrompt] = useState(false);
+
+  const [settings, setSettings] = useState<AppSettings | null>(null);
+  const [provider, setProvider] = useState<'openai' | 'custom'>('openai');
+
+  useEffect(() => {
+    void window.api.getSettings().then(setSettings);
+  }, []);
+
+  useEffect(() => {
+    if (settings) {
+      setProvider(settings.apiBaseURL.startsWith('https://api.openai.com') ? 'openai' : 'custom');
+    }
+  }, [settings]);
+
+  const saveSettings = (updated: AppSettings) => {
+    setSettings(updated);
+    void window.api.saveSettings(updated);
+  };
 
   const refreshPermissions = useCallback(async () => {
     const latest = await window.api.checkPermissions();
@@ -141,7 +191,11 @@ export function OnboardingView() {
   const isMicrophoneGranted = permissions.microphone === 'granted';
   const isAccessibilityGranted = permissions.accessibility;
 
-  const continueText = 'Open WhisperApp';
+  const isFirstStep = currentStep === 0;
+  const isLastStep = currentStep === STEPS.length - 1;
+
+  const stepId = STEPS[currentStep];
+  const nextDisabled = (stepId === 'mic' && !isMicrophoneGranted) || (stepId === 'accessibility' && !isAccessibilityGranted);
 
   return (
     <div className="app-shell app-shell--flush">
@@ -164,52 +218,144 @@ export function OnboardingView() {
               </div>
             </header>
 
+            <StepIndicator steps={STEPS} currentStep={currentStep} />
+
+            {/* Step content */}
             <div className="flex-1 py-4">
-              <div className="mx-auto grid max-w-5xl gap-3 md:grid-cols-2">
-                <PermissionCard
-                  kind="microphone"
-                  title="Microphone Access"
-                  description="Required to capture your voice before transcription starts."
-                  actionLabel="Grant"
-                  onAction={requestMicrophoneAccess}
-                  ready={isMicrophoneGranted}
-                  disabled={isMicrophoneGranted}
-                />
-
-                <PermissionCard
-                  kind="accessibility"
-                  title="Accessibility Access"
-                  description="Required so the global hotkey can start recording while you work in any app."
-                  actionLabel="Open Settings"
-                  onAction={openAccessibilitySettings}
-                  ready={isAccessibilityGranted}
-                  disabled={isAccessibilityGranted}
-                />
-              </div>
-
-              <section className="section-card mx-auto mt-3 max-w-5xl px-4 py-3.5">
-                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                  <div className="min-w-0">
-                    <p className="hero-kicker">Workflow</p>
-                    <p className="mt-1.5 text-sm leading-5 text-[#4b5650]">
-                      Hold F5 to record, release to transcribe, then WhisperApp pastes the final text back into your active app.
-                    </p>
+              <div className="mx-auto max-w-5xl">
+                {stepId === 'mic' && (
+                  <div className="space-y-4">
+                    <div>
+                      <h2 className="text-[18px] font-semibold tracking-[-0.02em] text-[#16211b]">Welcome to WhisperApp</h2>
+                      <p className="mt-1 text-sm leading-5 text-[#4b5650]">Hold a hotkey to record, release to transcribe — WhisperApp pastes the text into your active app.</p>
+                    </div>
+                    <PermissionCard kind="microphone" title="Microphone Access" description="Required to capture your voice before transcription starts." actionLabel="Grant" onAction={requestMicrophoneAccess} ready={isMicrophoneGranted} disabled={isMicrophoneGranted} />
                   </div>
-                  <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center">
+                )}
+                {stepId === 'accessibility' && (
+                  <div className="space-y-4">
+                    <div>
+                      <p className="text-sm leading-5 text-[#4b5650]">WhisperApp needs Accessibility access so the global hotkey can start recording while you work in any app.</p>
+                      <p className="mt-2 text-sm leading-5 text-[#4b5650]">Go to <strong>System Settings → Privacy &amp; Security → Accessibility</strong>, find WhisperApp, and toggle it on.</p>
+                    </div>
+                    <PermissionCard kind="accessibility" title="Accessibility Access" description="Required so the global hotkey can start recording while you work in any app." actionLabel="Open Settings" onAction={openAccessibilitySettings} ready={isAccessibilityGranted} disabled={isAccessibilityGranted} />
+                  </div>
+                )}
+                {stepId === 'stt' && settings && (
+                  <div className="space-y-4">
+                    <div>
+                      <h2 className="text-[18px] font-semibold tracking-[-0.02em] text-[#16211b]">Speech to Text Provider</h2>
+                      <p className="mt-1 text-sm leading-5 text-[#4b5650]">Choose your transcription backend and configure the connection.</p>
+                    </div>
+
+                    <div className="flex gap-2 rounded-full border border-[#15231e]/8 bg-white/70 p-1">
+                      <button
+                        type="button"
+                        onClick={() => { setProvider('openai'); saveSettings({ ...settings, apiBaseURL: DEFAULT_API_BASE_URL }); }}
+                        className={`flex-1 rounded-full px-4 py-1.5 text-sm font-semibold transition-colors ${provider === 'openai' ? 'bg-[#15231e] text-white' : 'text-[#4b5650]'}`}
+                      >
+                        OpenAI
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setProvider('custom')}
+                        className={`flex-1 rounded-full px-4 py-1.5 text-sm font-semibold transition-colors ${provider === 'custom' ? 'bg-[#15231e] text-white' : 'text-[#4b5650]'}`}
+                      >
+                        Custom Server
+                      </button>
+                    </div>
+
+                    <div className="space-y-2.5">
+                      {provider === 'openai' && (
+                        <label className="block">
+                          <span className="field-label">API Key</span>
+                          <input
+                            type="password"
+                            className="field-control text-sm"
+                            placeholder="sk-..."
+                            value={settings.apiKey}
+                            onChange={(e) => saveSettings({ ...settings, apiKey: e.target.value, apiBaseURL: DEFAULT_API_BASE_URL })}
+                          />
+                          <span className="field-help">Get your API key at platform.openai.com/api-keys</span>
+                        </label>
+                      )}
+                      {provider === 'custom' && (
+                        <>
+                          <label className="block">
+                            <span className="field-label">Base URL</span>
+                            <input
+                              type="text"
+                              className="field-control text-sm"
+                              placeholder="https://your-server.com/v1"
+                              value={settings.apiBaseURL}
+                              onChange={(e) => saveSettings({ ...settings, apiBaseURL: e.target.value })}
+                            />
+                          </label>
+                          <label className="block">
+                            <span className="field-label">API Key</span>
+                            <input
+                              type="password"
+                              className="field-control text-sm"
+                              placeholder="your-api-key"
+                              value={settings.apiKey}
+                              onChange={(e) => saveSettings({ ...settings, apiKey: e.target.value })}
+                            />
+                          </label>
+                          <label className="block">
+                            <span className="field-label">Model</span>
+                            <input
+                              type="text"
+                              className="field-control text-sm"
+                              placeholder="whisper-1"
+                              value={settings.modelName}
+                              onChange={(e) => saveSettings({ ...settings, modelName: e.target.value })}
+                            />
+                          </label>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+                {stepId === 'done' && (
+                  <div className="flex flex-col items-center justify-center py-6 text-center">
+                    <div className="mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-[rgba(15,118,110,0.08)]">
+                      <svg viewBox="0 0 24 24" className="h-7 w-7 text-[#0f766e]" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </div>
+                    <h2 className="text-[22px] font-bold tracking-[-0.03em] text-[#16211b]">You're all set!</h2>
+                    <p className="mt-2 max-w-xs text-sm leading-5 text-[#4b5650]">WhisperApp is configured and ready. You can always change these settings later.</p>
                     <Button
+                      className="mt-6 w-full max-w-xs"
                       onClick={() => {
+                        void window.api.completeOnboarding();
                         void window.api.showSettings();
                         window.close();
                       }}
-                      className="min-w-[180px]"
                     >
-                      {continueText}
+                      Open WhisperApp
                     </Button>
                   </div>
-                </div>
-              </section>
+                )}
+              </div>
+            </div>
 
-              <LegalNotice className="mx-auto mt-3 max-w-5xl" />
+            {/* Navigation bar */}
+            <div className="flex items-center justify-between border-t border-[#15231e]/6 pt-3">
+              <div>
+                {!isFirstStep && (
+                  <Button size="sm" variant="secondary" onClick={() => setCurrentStep((s) => s - 1)}>
+                    Back
+                  </Button>
+                )}
+              </div>
+              <div>
+                {!isLastStep && (
+                  <Button onClick={() => setCurrentStep((s) => s + 1)} disabled={nextDisabled}>
+                    Next
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -217,3 +363,9 @@ export function OnboardingView() {
     </div>
   );
 }
+
+/* ── Keep PermissionCard / PermissionIcon exported for Task 6 ── */
+export { PermissionCard, PermissionIcon };
+
+/* ── Keep permission helpers accessible ────────────────────────── */
+export type { PermissionState };
