@@ -408,4 +408,42 @@ describe('Settings Service', () => {
       expect(restored.llmSystemPrompt).toBe(originalSettings.llmSystemPrompt);
     });
   });
+
+  describe('onboardingCompleted', () => {
+    it('should have DEFAULT_SETTINGS.onboardingCompleted === false', () => {
+      expect(DEFAULT_SETTINGS.onboardingCompleted).toBe(false);
+    });
+
+    it('should return onboardingCompleted: false when field is missing from file', () => {
+      // Write settings without onboardingCompleted field
+      const partialSettings = { apiKey: 'sk-test' };
+      const settingsPath = getSettingsPath();
+      fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
+      fs.writeFileSync(settingsPath, JSON.stringify(partialSettings));
+
+      const loaded = loadSettings();
+      expect(loaded.onboardingCompleted).toBe(false);
+    });
+
+    it('should load onboardingCompleted: true when field is set to true in file', () => {
+      const testSettings: AppSettings = {
+        ...DEFAULT_SETTINGS,
+        onboardingCompleted: true,
+      };
+
+      const settingsPath = getSettingsPath();
+      fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
+      fs.writeFileSync(settingsPath, JSON.stringify(testSettings));
+
+      const loaded = loadSettings();
+      expect(loaded.onboardingCompleted).toBe(true);
+    });
+
+    it('should persist onboardingCompleted: true through save/load roundtrip', () => {
+      const settings = { ...DEFAULT_SETTINGS, onboardingCompleted: true };
+      saveSettings(settings);
+      const loaded = loadSettings();
+      expect(loaded.onboardingCompleted).toBe(true);
+    });
+  });
 });

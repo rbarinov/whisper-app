@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { APP_LEGAL_NOTICE, APP_REPOSITORY_URL } from '../../src/shared/version';
+
 
 test.describe('renderer app launch', () => {
   test.beforeEach(async ({ page }) => {
@@ -45,6 +45,7 @@ test.describe('renderer app launch', () => {
         showSettings: async () => undefined,
         showHistory: async () => undefined,
         showOnboarding: async () => undefined,
+        completeOnboarding: async () => undefined,
         quit: async () => undefined,
         startHotkeyCapture: async () => undefined,
         stopHotkeyCapture: async () => undefined,
@@ -102,9 +103,12 @@ test.describe('renderer app launch', () => {
 
   test('switches to onboarding view via query param', async ({ page }) => {
     await page.goto('index.html?view=onboarding');
-    await expect(page.getByRole('heading', { name: 'WhisperApp' })).toBeVisible();
-    await expect(page.getByText(APP_LEGAL_NOTICE)).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Open GitHub repository' })).toHaveAttribute('href', APP_REPOSITORY_URL);
+    // h1 branding is always visible
+    await expect(page.getByRole('heading', { name: 'WhisperApp', level: 1 })).toBeVisible();
+    // Step indicator is always visible
+    await expect(page.locator('.window-content')).toBeVisible();
+    // Next button is visible on first step (not the last step)
+    await expect(page.getByRole('button', { name: 'Next' })).toBeVisible();
   });
 
   test('switches to overlay view via query param', async ({ page }) => {
