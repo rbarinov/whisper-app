@@ -48,6 +48,7 @@ export interface AppSettings {
   llmApiKey: string;
   llmModelName: string;
   llmSystemPrompt: string;
+  onboardingCompleted: boolean;
 }
 
 export type OverlayState =

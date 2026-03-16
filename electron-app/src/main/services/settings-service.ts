@@ -173,6 +173,7 @@ export function loadSettings(): AppSettings {
       llmApiKey: fileSettings.llmApiKey ?? DEFAULT_SETTINGS.llmApiKey,
       llmModelName: fileSettings.llmModelName ?? DEFAULT_SETTINGS.llmModelName,
       llmSystemPrompt: fileSettings.llmSystemPrompt ?? DEFAULT_SETTINGS.llmSystemPrompt,
+      onboardingCompleted: fileSettings.onboardingCompleted ?? DEFAULT_SETTINGS.onboardingCompleted,
     };
   } catch (error) {
     // On any error (file not found, invalid JSON, etc.), return defaults

@@ -25,6 +25,7 @@ declare global {
       showSettings: () => Promise<void>;
       showHistory: () => Promise<void>;
       showOnboarding: () => Promise<void>;
+      completeOnboarding: () => Promise<void>;
       quit: () => Promise<void>;
       startHotkeyCapture: () => Promise<void>;
       stopHotkeyCapture: () => Promise<void>;

@@ -21,6 +21,7 @@ export const IPC = {
   SHOW_SETTINGS: 'show-settings',
   SHOW_HISTORY: 'show-history',
   SHOW_ONBOARDING: 'show-onboarding',
+  COMPLETE_ONBOARDING: 'complete-onboarding',
   QUIT_APP: 'quit-app',
   GET_AUDIO_PATH: 'get-audio-path',
   GET_APP_STATE: 'get-app-state',

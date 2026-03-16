@@ -71,4 +71,5 @@ export const DEFAULT_SETTINGS: AppSettings = {
   llmApiKey: '',
   llmModelName: DEFAULT_LLM_MODEL_NAME,
   llmSystemPrompt: DEFAULT_LLM_SYSTEM_PROMPT,
+  onboardingCompleted: false,
 };

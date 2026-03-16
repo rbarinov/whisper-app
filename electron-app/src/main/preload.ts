@@ -26,6 +26,7 @@ contextBridge.exposeInMainWorld('api', {
   showSettings: () => ipcRenderer.invoke(IPC.SHOW_SETTINGS),
   showHistory: () => ipcRenderer.invoke(IPC.SHOW_HISTORY),
   showOnboarding: () => ipcRenderer.invoke(IPC.SHOW_ONBOARDING),
+  completeOnboarding: () => ipcRenderer.invoke(IPC.COMPLETE_ONBOARDING),
   quit: () => ipcRenderer.invoke(IPC.QUIT_APP),
 
   startHotkeyCapture: () => ipcRenderer.invoke(IPC.START_HOTKEY_CAPTURE),
