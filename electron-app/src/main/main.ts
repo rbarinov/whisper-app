@@ -113,9 +113,12 @@ app.whenReady().then(() => {
 
   appStateManager.initialize({ startHotkeyManager: true });
 
-  openOnboardingWindow(() => {
-    openSettingsWindow();
-  });
+  const { onboardingCompleted } = appStateManager.getSnapshot().settings;
+  if (!onboardingCompleted) {
+    openOnboardingWindow();
+  } else {
+    openHistoryWindow();
+  }
 });
 
 app.on('window-all-closed', () => {

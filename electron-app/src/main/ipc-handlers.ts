@@ -19,7 +19,7 @@ function buildFramelessWindowOptions() {
   };
 }
 
-export function openOnboardingWindow(onClosed?: () => void): BrowserWindow {
+export function openOnboardingWindow(): BrowserWindow {
   if (onboardingWindow && !onboardingWindow.isDestroyed()) {
     onboardingWindow.focus();
     return onboardingWindow;
@@ -47,7 +47,6 @@ export function openOnboardingWindow(onClosed?: () => void): BrowserWindow {
   appStateRef?.trackStateWindow(onboardingWindow);
   onboardingWindow.on('closed', () => {
     onboardingWindow = null;
-    onClosed?.();
   });
 
   return onboardingWindow;
@@ -254,6 +253,10 @@ export function registerIpcHandlers(appState: AppStateManager): void {
   });
   ipcMain.handle(IPC.SHOW_ONBOARDING, async () => {
     openOnboardingWindow();
+  });
+  ipcMain.handle(IPC.COMPLETE_ONBOARDING, async () => {
+    const current = appState.getSnapshot().settings;
+    appState.updateSettings({ ...current, onboardingCompleted: true });
   });
   ipcMain.handle(IPC.QUIT_APP, async () => {
     app.quit();
