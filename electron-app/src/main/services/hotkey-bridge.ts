@@ -101,6 +101,16 @@ export class HotkeyBridge {
   private keyUpCallback: KeyCallback | null = null;
   private mediaCallback: MediaCallback | null = null;
 
+  // ── Deduplication state ──────────────────────────────────────────
+  // On Apple Silicon, F-keys fire BOTH NX_SYSDEFINED (media) and regular
+  // keyDown/keyUp events via CGEvent tap. The native addon sends both to JS
+  // via NonBlockingCall (async), so delivery order is non-deterministic.
+  // Without dedup, the HotkeyManager state machine sees phantom second cycles
+  // that cause missed recordings or false cancellations.
+  private lastKeyDownTime = 0;
+  private lastKeyUpTime = 0;
+  private static readonly DEDUP_WINDOW_MS = 80;
+
   start(): void {
     if (process.platform !== 'darwin' || this.running) {
       return;
@@ -164,7 +174,26 @@ export class HotkeyBridge {
       return;
     }
 
+    // ── Deduplication ──────────────────────────────────────────────
+    // Apple Silicon F-keys fire both NX_SYSDEFINED and regular keyDown/keyUp.
+    // Both arrive via NonBlockingCall in unpredictable order.
+    // Collapse duplicate down/up events within the dedup window so the
+    // HotkeyManager state machine sees exactly one keyDown and one keyUp
+    // per physical keypress.
+
+    const now = Date.now();
+
     if (event.type === 'keydown') {
+      // Dedup: suppress if a keyDown (from media or regular) was already
+      // dispatched within the dedup window for the target key
+      if (event.keyCode === this.currentKeyCode) {
+        if (now - this.lastKeyDownTime < HotkeyBridge.DEDUP_WINDOW_MS) {
+          console.log(`[HotkeyBridge] dedup: suppressed duplicate keydown for keyCode ${event.keyCode} (${now - this.lastKeyDownTime}ms since last)`);
+          return;
+        }
+        this.lastKeyDownTime = now;
+      }
+
       const mods: KeyModifiers = {
         ctrl: !!event.ctrlKey,
         alt: !!event.altKey,
@@ -176,6 +205,16 @@ export class HotkeyBridge {
     }
 
     if (event.type === 'keyup') {
+      // Dedup: suppress if a keyUp (from media or regular) was already
+      // dispatched within the dedup window for the target key
+      if (event.keyCode === this.currentKeyCode) {
+        if (now - this.lastKeyUpTime < HotkeyBridge.DEDUP_WINDOW_MS) {
+          console.log(`[HotkeyBridge] dedup: suppressed duplicate keyup for keyCode ${event.keyCode} (${now - this.lastKeyUpTime}ms since last)`);
+          return;
+        }
+        this.lastKeyUpTime = now;
+      }
+
       const mods: KeyModifiers = {
         ctrl: !!event.ctrlKey,
         alt: !!event.altKey,
@@ -190,6 +229,23 @@ export class HotkeyBridge {
     const expectedNXType = fKeyToNXKeyType(this.currentKeyCode);
     if (expectedNXType === undefined || event.nxKeyType !== expectedNXType) {
       return;
+    }
+
+    // Dedup: media events for the target key get the same dedup treatment.
+    // They are dispatched through the mediaCallback (which HotkeyManager
+    // maps to handleKeyDown/handleKeyUp for the current keyCode).
+    if (event.isDown) {
+      if (now - this.lastKeyDownTime < HotkeyBridge.DEDUP_WINDOW_MS) {
+        console.log(`[HotkeyBridge] dedup: suppressed duplicate media keydown (${now - this.lastKeyDownTime}ms since last)`);
+        return;
+      }
+      this.lastKeyDownTime = now;
+    } else {
+      if (now - this.lastKeyUpTime < HotkeyBridge.DEDUP_WINDOW_MS) {
+        console.log(`[HotkeyBridge] dedup: suppressed duplicate media keyup (${now - this.lastKeyUpTime}ms since last)`);
+        return;
+      }
+      this.lastKeyUpTime = now;
     }
 
     this.mediaCallback?.(event.nxKeyType, event.isDown);

@@ -223,6 +223,7 @@ export class HotkeyManager {
   }
 
   private emitAction(action: HotkeyAction): void {
+    console.log(`[HotkeyManager] action: ${action} (state: ${this.activeRecordingState})`);
     this.onAction?.(action);
   }
 
@@ -317,8 +318,6 @@ export class HotkeyManager {
     } else if (!this.isToggleRecording) {
       this.emitAction('holdEnd');
     }
-
-    this.holdTimer = null;
   }
 
   private normalizeModifiers(modifiers?: HotkeyModifiers): ModifierState {

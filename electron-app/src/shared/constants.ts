@@ -50,7 +50,7 @@ export const OVERLAY_DISMISS_ERROR_MS = 5000;
 export const OVERLAY_DISMISS_CANCELLED_MS = 1500;
 
 // Recording constraints
-export const MIN_RECORDING_DURATION_S = 0.5;
+export const MIN_RECORDING_DURATION_S = 0.15;
 
 // Default settings combining all defaults
 export const DEFAULT_SETTINGS: AppSettings = {
