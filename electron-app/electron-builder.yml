@@ -21,6 +21,10 @@ extraResources:
     to: native/hotkey-helper
     filter:
       - "**/*"
+  - from: native/paste-helper
+    to: native/paste-helper
+    filter:
+      - "**/*"
 mac:
   target:
     - dmg

@@ -14,9 +14,16 @@ vi.mock('electron', () => ({
 }));
 
 vi.mock('child_process', () => ({
-  execFile: vi.fn((_cmd: string, _args: string[], cb: (err: Error | null) => void) => {
-    cb(null);
+  execFile: vi.fn((cmd: string, argsOrCb: string[] | ((err: Error | null) => void), maybeCb?: (err: Error | null) => void) => {
+    const cb = typeof argsOrCb === 'function' ? argsOrCb : maybeCb;
+    if (typeof cb === 'function') {
+      cb(null);
+    }
   }),
+}));
+
+vi.mock('fs', () => ({
+  existsSync: vi.fn((targetPath: string) => targetPath.includes('native/paste-helper')),
 }));
 
 import {
@@ -98,6 +105,23 @@ describe('Paste Service', () => {
       expect(clipboardWrite).toHaveBeenCalledWith('hello world');
       expect(simulateKeystroke).toHaveBeenCalled();
       expect(result.success).toBe(true);
+      expect(result.method).toBe('keyboard');
+    });
+
+    it('uses the native paste helper on macOS', async () => {
+      Object.defineProperty(process, 'platform', { value: 'darwin' });
+
+      const { execFile } = await import('child_process');
+
+      const result = await pasteText('native helper', {
+        clipboardWrite: vi.fn(),
+        clipboardRead: vi.fn().mockReturnValue(''),
+        clipboardSave: vi.fn().mockReturnValue(emptySnapshot),
+        isWayland: false,
+        delayMs: 0,
+      });
+
+      expect(execFile).toHaveBeenCalled();
       expect(result.method).toBe('keyboard');
     });
 

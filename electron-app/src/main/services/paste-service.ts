@@ -1,5 +1,7 @@
 import { clipboard, NativeImage } from 'electron';
 import { execFile } from 'child_process';
+import * as fs from 'fs';
+import * as path from 'path';
 
 export interface PasteResult {
   success: boolean;
@@ -18,6 +20,20 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function resolveNativePasteHelperPath(): string | null {
+  const devPath = path.resolve(__dirname, '../../../../native/paste-helper');
+  if (fs.existsSync(devPath)) {
+    return devPath;
+  }
+
+  const packagedPath = path.resolve(process.resourcesPath, 'native/paste-helper');
+  if (fs.existsSync(packagedPath)) {
+    return packagedPath;
+  }
+
+  return null;
+}
+
 /**
  * Simulate Cmd+V (macOS), Ctrl+V (Windows), or xdotool (Linux)
  * using only built-in OS tools — no native dependencies required.
@@ -25,15 +41,16 @@ function delay(ms: number): Promise<void> {
 async function simulatePasteKeystroke(): Promise<void> {
   return new Promise((resolve, reject) => {
     if (process.platform === 'darwin') {
-      // AppleScript: simulate Cmd+V keystroke in the frontmost application
-      execFile(
-        'osascript',
-        ['-e', 'tell application "System Events" to keystroke "v" using command down'],
-        (error) => {
-          if (error) reject(error);
-          else resolve();
-        },
-      );
+      const helperPath = resolveNativePasteHelperPath();
+      if (!helperPath) {
+        reject(new Error('Native paste helper not found'));
+        return;
+      }
+
+      execFile(helperPath, (error) => {
+        if (error) reject(error);
+        else resolve();
+      });
     } else if (process.platform === 'win32') {
       // PowerShell: simulate Ctrl+V
       execFile(
@@ -151,8 +168,8 @@ export async function pasteText(
   options: PasteOptions = {},
 ): Promise<PasteResult> {
   const {
-    delayMs = 50,
-    restoreDelayMs = 500,
+    delayMs = process.platform === 'darwin' ? 120 : 50,
+    restoreDelayMs = process.platform === 'darwin' ? 1200 : 500,
     clipboardWrite = (t: string) => clipboard.writeText(t),
     clipboardRead = () => clipboard.readText(),
     clipboardSave = saveClipboard,

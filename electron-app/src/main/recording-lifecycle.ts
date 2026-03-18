@@ -248,6 +248,11 @@ export async function runTranscriptionFromBuffer(
     errorMessage,
   });
 
+  const pasteResult = await pasteText(finalText);
+  if (pasteResult.method === 'clipboard-only' && pasteResult.message) {
+    ctx.sendWaylandPasteNotification(pasteResult.message);
+  }
+
   ctx.history = loadHistory();
   ctx.activeTranscriptionEntryId = null;
   ctx.recordingState = { type: 'idle' };
@@ -257,11 +262,6 @@ export async function runTranscriptionFromBuffer(
     ctx.overlayState = { type: 'done', text: finalText };
     ctx.broadcastOverlayUpdate(ctx.overlayState);
     ctx.scheduleOverlayDismiss(ctx.overlayState);
-  }
-
-  const pasteResult = await pasteText(finalText);
-  if (pasteResult.method === 'clipboard-only' && pasteResult.message) {
-    ctx.sendWaylandPasteNotification(pasteResult.message);
   }
 }
 
