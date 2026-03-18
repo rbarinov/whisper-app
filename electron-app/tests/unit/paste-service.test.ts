@@ -23,7 +23,7 @@ vi.mock('child_process', () => ({
 }));
 
 vi.mock('fs', () => ({
-  existsSync: vi.fn((targetPath: string) => targetPath.includes('native/paste-helper')),
+  existsSync: vi.fn((targetPath: string) => /native[\\/]paste-helper$/.test(targetPath)),
 }));
 
 import {
