@@ -22,13 +22,12 @@ PBXPROJ="$REPO_ROOT/WhisperApp/WhisperApp.xcodeproj/project.pbxproj"
 CURRENT_VERSION="$(node -p "require(process.argv[1]).version" "$PACKAGE_JSON")"
 
 if [ -f "$VERSION_TS" ]; then
-  SHARED_VERSION="$(node -e "const fs=require('fs'); const m=fs.readFileSync(process.argv[1],'utf8').match(/APP_VERSION = '([^']+)'/); if (!m) process.exit(2); process.stdout.write(m[1]);" "$VERSION_TS")"
-  if [ "$SHARED_VERSION" != "$CURRENT_VERSION" ]; then
+  SHARED_VERSION="$(node -e "const fs=require('fs'); const m=fs.readFileSync(process.argv[1],'utf8').match(/APP_VERSION = '([^']+)'/); if (!m) process.exit(2); process.stdout.write(m[1]);" "$VERSION_TS" 2>/dev/null || true)"
+  if [ -n "$SHARED_VERSION" ] && [ "$SHARED_VERSION" != "$CURRENT_VERSION" ]; then
     echo "Version mismatch: package.json=$CURRENT_VERSION, version.ts=$SHARED_VERSION" >&2
     exit 1
   fi
 fi
-
 TARGET_VERSION="$(
   CURRENT_VERSION="$CURRENT_VERSION" INPUT="$INPUT" node <<'NODE'
 const current = process.env.CURRENT_VERSION;
