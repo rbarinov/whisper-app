@@ -17,6 +17,7 @@ xcuserdata/
 
 # Debug logs
 whisperapp_debug.log
+whisperapp-paste.log
 
 # App data (user settings/history)
 *.json.bak
@@ -29,6 +30,5 @@ electron-app/dist/
 electron-app/out/
 electron-app/release/
 electron-app/node_modules/
-electron-app/playwright-report/
-electron-app/test-results/
-node_modules/
+electron-app/native/paste-helper
+electron-app/native/hotkey-helper

@@ -2,7 +2,18 @@ import { clipboard, NativeImage } from 'electron';
 import { execFile } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
 
+const LOG_FILE = path.join(os.homedir(), 'whisperapp-paste.log');
+
+function log(message: string): void {
+  const timestamp = new Date().toISOString();
+  const line = `[${timestamp}] ${message}\n`;
+  try {
+    fs.appendFileSync(LOG_FILE, line);
+  } catch {}
+  console.log(message);
+}
 export interface PasteResult {
   success: boolean;
   method: 'keyboard' | 'clipboard-only';
@@ -46,10 +57,18 @@ async function simulatePasteKeystroke(): Promise<void> {
         reject(new Error('Native paste helper not found'));
         return;
       }
-
-      execFile(helperPath, (error) => {
-        if (error) reject(error);
-        else resolve();
+      log('[paste-service] Using native helper at: ' + helperPath);
+      execFile(helperPath, (error, _stdout, stderr) => {
+        if (error) {
+          log('[paste-service] Native helper error: ' + error.message);
+          reject(error);
+        } else if (stderr) {
+          log('[paste-service] Native helper stderr: ' + stderr);
+          reject(new Error(stderr));
+        } else {
+          log('[paste-service] Native helper completed successfully');
+          resolve();
+        }
       });
     } else if (process.platform === 'win32') {
       // PowerShell: simulate Ctrl+V
@@ -199,9 +218,9 @@ export async function pasteText(
     // 3. Small delay before simulating keystroke (let clipboard settle)
     await delay(delayMs);
 
-    // 4. Simulate paste keystroke
+    log('[paste-service] Simulating paste keystroke, clipboard has: ' + (clipboardRead()?.substring(0, 50) || '(empty)'));
     await simulateKeystroke();
-
+    log('[paste-service] Keystroke simulation complete');
     // 5. Restore previous clipboard after target app reads it
     setTimeout(() => {
       try {

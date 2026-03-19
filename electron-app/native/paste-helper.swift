@@ -3,35 +3,49 @@ import CoreGraphics
 import Foundation
 
 private enum PasteHelperError: Error {
-    case eventSourceUnavailable
-    case eventCreationFailed
+    case accessibilityNotTrusted
+    case appleScriptFailed
 }
 
+/// Simulates Cmd+V keystroke using AppleScript.
+/// AppleScript is more reliable than CGEvent for cross-application keyboard simulation
+/// because it properly handles custom keyboard layouts and doesn't require focus management.
 private func simulateCommandV() throws {
-    guard let source = CGEventSource(stateID: .hidSystemState) else {
-        throw PasteHelperError.eventSourceUnavailable
+    // Check accessibility permissions first
+    guard AXIsProcessTrusted() else {
+        throw PasteHelperError.accessibilityNotTrusted
     }
-
-    guard let keyDown = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: true),
-          let keyUp = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: false) else {
-        throw PasteHelperError.eventCreationFailed
+    
+    let script = """
+    tell application \"System Events\" to keystroke \"v\" using command down
+    """
+    
+    guard let appleScript = NSAppleScript(source: script) else {
+        throw PasteHelperError.appleScriptFailed
     }
-
-    keyDown.flags = .maskCommand
-    keyUp.flags = .maskCommand
-
-    keyDown.post(tap: .cghidEventTap)
-    keyUp.post(tap: .cghidEventTap)
+    
+    var errorDict: NSDictionary?
+    appleScript.compileAndReturnError(&errorDict)
+    if let error = errorDict {
+        FileHandle.standardError.write(Data("AppleScript compile error: \(error)\n".utf8))
+        throw PasteHelperError.appleScriptFailed
+    }
+    
+    appleScript.executeAndReturnError(&errorDict)
+    if let error = errorDict {
+        FileHandle.standardError.write(Data("AppleScript execution error: \(error)\n".utf8))
+        throw PasteHelperError.appleScriptFailed
+    }
 }
 
 do {
     try simulateCommandV()
     exit(EXIT_SUCCESS)
-} catch PasteHelperError.eventSourceUnavailable {
-    FileHandle.standardError.write(Data("Unable to create CGEvent source\n".utf8))
+} catch PasteHelperError.accessibilityNotTrusted {
+    FileHandle.standardError.write(Data("Accessibility permission not granted\n".utf8))
     exit(EXIT_FAILURE)
-} catch PasteHelperError.eventCreationFailed {
-    FileHandle.standardError.write(Data("Unable to create Command+V events\n".utf8))
+} catch PasteHelperError.appleScriptFailed {
+    FileHandle.standardError.write(Data("AppleScript paste failed\n".utf8))
     exit(EXIT_FAILURE)
 } catch {
     FileHandle.standardError.write(Data("Unexpected paste helper failure: \(error)\n".utf8))
