@@ -32,3 +32,7 @@ electron-app/release/
 electron-app/node_modules/
 electron-app/native/paste-helper
 electron-app/native/hotkey-helper
+electron-app/native/keytap/node_modules/
+electron-app/playwright-report/
+electron-app/test-results/
+node_modules/
