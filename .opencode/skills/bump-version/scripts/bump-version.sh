@@ -73,7 +73,7 @@ fi
 
 (
   cd "$REPO_ROOT/electron-app"
-  npm version "$TARGET_VERSION" --no-git-tag-version --allow-same-version >/dev/null
+  npm version "$TARGET_VERSION" --no-git-tag-version >/dev/null
 )
 
 node - "$REPO_ROOT" "$TARGET_VERSION" <<'NODE'
