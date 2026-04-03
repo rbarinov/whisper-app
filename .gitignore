@@ -1,13 +1,5 @@
 # Build artifacts
 build/
-DerivedData/
-*.app
-
-# Xcode
-*.xcodeproj/xcuserdata/
-*.xcworkspace/xcuserdata/
-*.xcodeproj/project.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
-xcuserdata/
 
 # macOS
 .DS_Store
