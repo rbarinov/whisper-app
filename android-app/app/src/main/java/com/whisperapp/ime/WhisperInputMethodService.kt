@@ -16,8 +16,26 @@ import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import com.whisperapp.domain.repository.SettingsRepository
+import com.whisperapp.domain.repository.TranscriptionRepository
+import com.whisperapp.domain.service.AudioRecorderService
+import com.whisperapp.domain.service.LlmService
+import com.whisperapp.domain.service.TranscriptionService
 import com.whisperapp.ime.ui.KeyboardScreen
-import com.whisperapp.WhisperApplication
+import dagger.hilt.EntryPoint
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+
+@EntryPoint
+@InstallIn(SingletonComponent::class)
+interface ImeServiceEntryPoint {
+    fun audioRecorderService(): AudioRecorderService
+    fun transcriptionService(): TranscriptionService
+    fun llmService(): LlmService
+    fun transcriptionRepository(): TranscriptionRepository
+    fun settingsRepository(): SettingsRepository
+}
+
 class WhisperInputMethodService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner,
     SavedStateRegistryOwner {
     private val lifecycleRegistry = LifecycleRegistry(this)
@@ -37,13 +55,15 @@ class WhisperInputMethodService : InputMethodService(), LifecycleOwner, ViewMode
         savedStateRegistryController.performRestore(null)
         lifecycleRegistry.currentState = Lifecycle.State.CREATED
 
-        val app = application as WhisperApplication
+        val entryPoint = dagger.hilt.EntryPointAccessors.fromApplication(
+            application, ImeServiceEntryPoint::class.java
+        )
         viewModel = KeyboardViewModel(
-            audioRecorderService = app.audioRecorderService,
-            transcriptionService = app.transcriptionService,
-            llmService = app.llmService,
-            transcriptionRepository = app.transcriptionRepository,
-            settingsRepository = app.settingsRepository
+            audioRecorderService = entryPoint.audioRecorderService(),
+            transcriptionService = entryPoint.transcriptionService(),
+            llmService = entryPoint.llmService(),
+            transcriptionRepository = entryPoint.transcriptionRepository(),
+            settingsRepository = entryPoint.settingsRepository()
         )
     }
 
@@ -88,7 +108,9 @@ class WhisperInputMethodService : InputMethodService(), LifecycleOwner, ViewMode
     override fun onWindowHidden() {
         super.onWindowHidden()
         lifecycleRegistry.currentState = Lifecycle.State.STARTED
-        viewModel.cancelRecording()
+        if (viewModel.isRecordingActive) {
+            viewModel.cancelRecording()
+        }
     }
 
     override fun onFinishInputView(finishingInput: Boolean) {

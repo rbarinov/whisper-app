@@ -22,8 +22,11 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.io.File
 import java.util.UUID
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 
-class KeyboardViewModel(
+@HiltViewModel
+class KeyboardViewModel @Inject constructor(
     private val audioRecorderService: AudioRecorderService,
     private val transcriptionService: TranscriptionService,
     private val llmService: LlmService,
