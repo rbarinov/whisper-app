@@ -8,7 +8,6 @@ import com.whisperapp.domain.service.AudioRecorderService
 import com.whisperapp.domain.service.LlmService
 import com.whisperapp.domain.service.TranscriptionService
 import com.whisperapp.ime.KeyboardViewModel
-import kotlin.reflect.KClass
 
 class KeyboardViewModelFactory(
     private val audioRecorderService: AudioRecorderService,
@@ -19,8 +18,8 @@ class KeyboardViewModelFactory(
 ) : ViewModelProvider.Factory {
 
     @Suppress("UNCHECKED_CAST")
-    override fun <T : ViewModel> create(modelClass: KClass<T>): T {
-        if (modelClass == KeyboardViewModel::class) {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(KeyboardViewModel::class.java)) {
             return KeyboardViewModel(
                 audioRecorderService = audioRecorderService,
                 transcriptionService = transcriptionService,
@@ -29,6 +28,6 @@ class KeyboardViewModelFactory(
                 settingsRepository = settingsRepository
             ) as T
         }
-        throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.qualifiedName}")
+        throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
     }
 }
