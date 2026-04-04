@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Refresh
@@ -227,7 +228,7 @@ private fun StatusIndicator(status: TranscriptionStatus) {
 @Composable
 fun HistoryDetailScreen(
     entry: TranscriptionEntry?,
-    onRetry: (String) -> Unit,
+    onRetry: () -> Unit,
     onBack: () -> Unit
 ) {
     if (entry == null) {
@@ -247,7 +248,7 @@ fun HistoryDetailScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            androidx.compose.material.icons.Icons.AutoMirrored.Filled.ArrowBack,
+                            Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back"
                         )
                     }
@@ -272,7 +273,7 @@ fun HistoryDetailScreen(
                         }
                     }
                     if (entry.status == TranscriptionStatus.FAILED || entry.status == TranscriptionStatus.CANCELLED) {
-                        IconButton(onClick = { onRetry(entry.id) }) {
+                        IconButton(onClick = onRetry) {
                             Icon(Icons.Default.Refresh, contentDescription = "Retry")
                         }
                     }
