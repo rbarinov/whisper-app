@@ -6,6 +6,7 @@ import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.whisperapp.data.local.AppDatabase
 import com.whisperapp.data.local.TranscriptionDao
+import com.whisperapp.data.remote.ApiKeyInterceptor
 import com.whisperapp.data.remote.LlmApi
 import com.whisperapp.data.remote.WhisperApi
 import com.whisperapp.data.repository.SettingsRepositoryImpl
@@ -34,8 +35,9 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideOkHttpClient(): OkHttpClient {
+    fun provideOkHttpClient(apiKeyInterceptor: ApiKeyInterceptor): OkHttpClient {
         return OkHttpClient.Builder()
+            .addInterceptor(apiKeyInterceptor)
             .addInterceptor(HttpLoggingInterceptor().apply {
                 level = HttpLoggingInterceptor.Level.BODY
             })

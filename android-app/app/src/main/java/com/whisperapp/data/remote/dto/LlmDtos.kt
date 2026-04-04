@@ -23,7 +23,9 @@ data class ChatChoice(
 )
 
 data class ChatDelta(
-    @SerializedName("content") val content: String? = null
+    @SerializedName("content") val content: String? = null,
+    @SerializedName("reasoning_content") val reasoningContent: String? = null,
+    @SerializedName("reasoning") val reasoning: String? = null
 )
 
 data class LlmStreamChunk(

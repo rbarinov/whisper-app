@@ -44,7 +44,7 @@ class SettingsDataStore(
             llmApiBaseUrl = prefs[KEY_LLM_API_BASE_URL] ?: "",
             llmApiKey = secureStorage.loadString(SecureStorage.LLM_API_KEY) ?: "",
             llmModelName = prefs[KEY_LLM_MODEL_NAME] ?: AppConstants.DEFAULT_LLM_MODEL_NAME,
-            llmSystemPrompt = prefs[KEY_LLM_SYSTEM_PROMPT] ?: AppSettings.DEFAULT_LLM_SYSTEM_PROMPT,
+            llmSystemPrompt = prefs[KEY_LLM_SYSTEM_PROMPT] ?: AppConstants.DEFAULT_LLM_SYSTEM_PROMPT,
             autoCopyToClipboard = prefs[KEY_AUTO_COPY] ?: true,
             onboardingCompleted = prefs[KEY_ONBOARDING_COMPLETED] ?: false
         )
@@ -85,7 +85,7 @@ class SettingsDataStore(
         llmApiBaseUrl = this[KEY_LLM_API_BASE_URL] ?: "",
         llmApiKey = secureStorage.loadString(SecureStorage.LLM_API_KEY) ?: "",
         llmModelName = this[KEY_LLM_MODEL_NAME] ?: AppConstants.DEFAULT_LLM_MODEL_NAME,
-        llmSystemPrompt = this[KEY_LLM_SYSTEM_PROMPT] ?: AppSettings.DEFAULT_LLM_SYSTEM_PROMPT,
+        llmSystemPrompt = this[KEY_LLM_SYSTEM_PROMPT] ?: AppConstants.DEFAULT_LLM_SYSTEM_PROMPT,
         autoCopyToClipboard = this[KEY_AUTO_COPY] ?: true,
         onboardingCompleted = this[KEY_ONBOARDING_COMPLETED] ?: false
     )

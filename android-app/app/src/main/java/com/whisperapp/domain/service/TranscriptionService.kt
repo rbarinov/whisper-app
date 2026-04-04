@@ -1,90 +1,223 @@
 package com.whisperapp.domain.service
 
+import com.google.gson.Gson
+import com.whisperapp.data.provider.LLMStreamToken
+import com.whisperapp.data.provider.ProviderError
+import com.whisperapp.data.remote.LlmApi
+import com.whisperapp.data.remote.WhisperApi
+import com.whisperapp.data.remote.dto.ChatCompletionRequest
+import com.whisperapp.data.remote.dto.ChatDelta
+import com.whisperapp.data.remote.dto.ChatMessage
 import com.whisperapp.domain.model.AppSettings
+import com.whisperapp.util.AppConstants
+import com.whisperapp.util.RetryOptions
+import com.whisperapp.util.defaultShouldRetry
+import com.whisperapp.util.retryWithBackoff
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.isActive
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
-import com.whisperapp.data.remote.LlmApi
-import com.whisperapp.data.remote.WhisperApi
-import com.whisperapp.data.remote.dto.ChatCompletionRequest
-import com.whisperapp.data.remote.dto.ChatMessage
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.flowOn
 import java.io.File
+import java.net.URL
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class TranscriptionService @Inject constructor(
-    private val whisperApi: WhisperApi
+    private val whisperApi: WhisperApi,
+    private val gson: Gson
 ) {
     suspend fun transcribe(
         audioFile: File,
         settings: AppSettings
     ): String {
+        validateTranscriptionConfig(settings)
+
         val requestBody = audioFile.asRequestBody("audio/wav".toMediaType())
         val filePart = MultipartBody.Part.createFormData("file", audioFile.name, requestBody)
+        val url = "${settings.apiBaseUrl}/audio/transcriptions"
 
-        return whisperApi.transcribe(
-            url = "${settings.apiBaseUrl}/audio/transcriptions",
-            file = filePart,
-            model = settings.modelName.toRequestBody("text/plain".toMediaType()),
-            responseFormat = "json".toRequestBody("text/plain".toMediaType()),
-            language = settings.language.takeIf { it != "en" }?.toRequestBody("text/plain".toMediaType())
-        ).text
+        return retryWithBackoff(
+            block = {
+                val response = whisperApi.transcribeRaw(
+                    url = url,
+                    file = filePart,
+                    model = settings.modelName.toRequestBody("text/plain".toMediaType()),
+                    responseFormat = "json".toRequestBody("text/plain".toMediaType()),
+                    language = settings.language.takeIf { it.isNotBlank() && it != "en" }
+                        ?.toRequestBody("text/plain".toMediaType())
+                )
+
+                if (!response.isSuccessful) {
+                    val errorBody = response.errorBody()?.string() ?: response.message()
+                    throw ProviderError.ApiError(response.code(), errorBody)
+                }
+
+                val body = response.body()?.string()
+                    ?: throw ProviderError.DecodingError("Empty response body")
+
+                try {
+                    val result = gson.fromJson(body, TranscriptionResult::class.java)
+                    result.text ?: throw ProviderError.DecodingError("Empty transcription text in response")
+                } catch (e: ProviderError) {
+                    throw e
+                } catch (e: Exception) {
+                    throw ProviderError.DecodingError(e.message ?: "Failed to parse transcription response")
+                }
+            },
+            options = RetryOptions(
+                maxRetries = AppConstants.MAX_RETRIES,
+                shouldRetry = ::shouldRetryProvider
+            )
+        )
+    }
+
+    private fun validateTranscriptionConfig(settings: AppSettings) {
+        if (settings.apiKey.isBlank()) throw ProviderError.NoAPIKey()
+        try {
+            URL(settings.apiBaseUrl)
+        } catch (_: Exception) {
+            throw ProviderError.InvalidURL()
+        }
     }
 }
 
 @Singleton
 class LlmService @Inject constructor(
-    private val llmApi: LlmApi
+    private val llmApi: LlmApi,
+    private val gson: Gson
 ) {
     suspend fun processText(text: String, settings: AppSettings): String {
-        val request = ChatCompletionRequest(
-            model = settings.llmModelName,
-            messages = listOf(
-                ChatMessage(role = "system", content = settings.llmSystemPrompt),
-                ChatMessage(role = "user", content = "<transcription>\n$text\n</transcription>")
-            ),
-            stream = false
+        validateLlmConfig(settings)
+
+        val request = buildRequest(text, settings, stream = false)
+        val url = "${settings.effectiveLlmApiBaseUrl}/chat/completions"
+
+        return retryWithBackoff(
+            block = {
+                val response = llmApi.chatCompletion(
+                    url = url,
+                    request = request
+                )
+
+                if (!response.isSuccessful) {
+                    val errorBody = response.errorBody()?.string() ?: response.message()
+                    throw ProviderError.ApiError(response.code(), errorBody)
+                }
+
+                response.body()?.choices?.firstOrNull()?.message?.content
+                    ?: throw ProviderError.DecodingError("Empty LLM response")
+            },
+            options = RetryOptions(
+                maxRetries = AppConstants.MAX_RETRIES,
+                shouldRetry = ::shouldRetryProvider
+            )
         )
-
-        val response = llmApi.chatCompletion(
-            url = "${settings.effectiveLlmApiBaseUrl}/chat/completions",
-            request = request
-        )
-
-        if (!response.isSuccessful) {
-            throw RuntimeException("LLM API error: ${response.code()} ${response.message()}")
-        }
-
-        return response.body()?.choices?.firstOrNull()?.message?.content
-            ?: throw RuntimeException("Empty LLM response")
     }
 
-    fun processTextStream(text: String, settings: AppSettings) = flow<String> {
-        val request = ChatCompletionRequest(
+    fun processTextStream(text: String, settings: AppSettings): Flow<LLMStreamToken> {
+        validateLlmConfig(settings)
+
+        return flow {
+            val request = buildRequest(text, settings, stream = true)
+            val url = "${settings.effectiveLlmApiBaseUrl}/chat/completions"
+
+            retryWithBackoff(
+                block = {
+                    val response = llmApi.chatCompletionStream(
+                        url = url,
+                        request = request
+                    )
+
+                    if (!response.isSuccessful) {
+                        val errorBody = response.errorBody()?.string() ?: response.message()
+                        throw ProviderError.ApiError(response.code(), errorBody)
+                    }
+
+                    val responseBody = response.body()
+                        ?: throw ProviderError.DecodingError("Empty response body")
+
+                    val source = responseBody.source()
+                    while (!source.exhausted() && isActive) {
+                        val line = source.readUtf8Line() ?: continue
+
+                        if (line.startsWith(":")) continue
+                        if (line.isBlank()) continue
+                        if (line == "data: [DONE]") break
+                        if (!line.startsWith("data: ")) continue
+
+                        val json = line.removePrefix("data: ")
+                        try {
+                            val chunk = gson.fromJson(json, StreamChunk::class.java)
+                            chunk.choices?.firstOrNull()?.delta?.let { delta ->
+                                val reasoning = delta.reasoningContent ?: delta.reasoning
+                                if (!reasoning.isNullOrBlank()) {
+                                    emit(LLMStreamToken.Reasoning(reasoning))
+                                }
+                                if (!delta.content.isNullOrBlank()) {
+                                    emit(LLMStreamToken.Content(delta.content))
+                                }
+                            }
+                        } catch (_: Exception) {
+                        }
+                    }
+                },
+                options = RetryOptions(
+                    maxRetries = AppConstants.MAX_RETRIES,
+                    shouldRetry = ::shouldRetryProvider
+                )
+            )
+        }.flowOn(Dispatchers.IO)
+    }
+
+    private fun validateLlmConfig(settings: AppSettings) {
+        if (settings.effectiveLlmApiKey.isBlank()) throw ProviderError.NoAPIKey()
+        try {
+            URL(settings.effectiveLlmApiBaseUrl)
+        } catch (_: Exception) {
+            throw ProviderError.InvalidURL()
+        }
+    }
+
+    private fun buildRequest(
+        text: String,
+        settings: AppSettings,
+        stream: Boolean
+    ): ChatCompletionRequest {
+        return ChatCompletionRequest(
             model = settings.llmModelName,
             messages = listOf(
                 ChatMessage(role = "system", content = settings.llmSystemPrompt),
                 ChatMessage(role = "user", content = "<transcription>\n$text\n</transcription>")
             ),
-            stream = true
+            stream = stream
         )
+    }
+}
 
-        val response = llmApi.chatCompletionStream(
-            url = "${settings.effectiveLlmApiBaseUrl}/chat/completions",
-            request = request
-        )
+private data class TranscriptionResult(val text: String?)
 
-        if (!response.isSuccessful) {
-            throw RuntimeException("LLM API error: ${response.code()} ${response.message()}")
-        }
+private data class StreamChunk(
+    val choices: List<StreamChoice>?
+)
 
-        response.body()?.choices?.forEach { choice ->
-            choice.delta?.content?.let { emit(it) }
-        }
-    }.flowOn(Dispatchers.IO)
+private data class StreamChoice(
+    val delta: ChatDelta?
+)
+
+private fun shouldRetryProvider(error: Throwable, statusCode: Int?): Boolean {
+    if (error is ProviderError.NoAPIKey ||
+        error is ProviderError.InvalidURL ||
+        error is ProviderError.DecodingError
+    ) return false
+    if (error is ProviderError.ApiError) {
+        val code = error.statusCode
+        if (code in 400..499 && code != 408 && code != 429) return false
+    }
+    return defaultShouldRetry(error, statusCode)
 }

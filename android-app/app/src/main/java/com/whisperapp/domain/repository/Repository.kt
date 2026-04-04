@@ -6,12 +6,14 @@ import kotlinx.coroutines.flow.Flow
 
 interface TranscriptionRepository {
     fun getAllEntries(): Flow<List<TranscriptionEntry>>
+    fun getEntryFlow(id: String): Flow<TranscriptionEntry?>
     suspend fun getEntry(id: String): TranscriptionEntry?
     suspend fun insertEntry(entry: TranscriptionEntry)
     suspend fun updateAfterTranscription(id: String, rawText: String, status: String)
     suspend fun updateAfterProcessing(id: String, text: String, status: String, errorMessage: String? = null)
     suspend fun deleteEntry(id: String)
     suspend fun deleteAllEntries()
+    suspend fun recoverInterruptedEntries()
 }
 
 interface SettingsRepository {

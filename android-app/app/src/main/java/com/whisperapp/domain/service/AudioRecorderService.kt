@@ -8,22 +8,29 @@ import com.whisperapp.util.AudioUtils
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.ByteArrayOutputStream
 import java.io.File
-import java.io.FileOutputStream
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.concurrent.thread
 
 @Singleton
 class AudioRecorderService @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
+    @Volatile
     private var audioRecord: AudioRecord? = null
+
+    @Volatile
     private var isRecording = false
+
     private var recordingThread: Thread? = null
-    private var pcmData = mutableListOf<Byte>()
+    private var pcmOutputStream = ByteArrayOutputStream()
+    private var startTimeMs = 0L
 
     val isCurrentlyRecording: Boolean get() = isRecording
 
+    @Synchronized
     fun startRecording() {
         if (isRecording) return
 
@@ -38,46 +45,54 @@ class AudioRecorderService @Inject constructor(
             channelConfig,
             audioFormat,
             bufferSize
-        ).also {
-            it.startRecording()
-        }
+        )
 
+        pcmOutputStream = ByteArrayOutputStream()
+        startTimeMs = System.currentTimeMillis()
         isRecording = true
-        pcmData = mutableListOf()
 
-        recordingThread = Thread {
+        audioRecord!!.startRecording()
+
+        recordingThread = thread(name = "AudioRecorder") {
             val buffer = ByteArray(bufferSize)
             while (isRecording) {
                 val read = audioRecord?.read(buffer, 0, buffer.size) ?: -1
                 if (read > 0) {
-                    synchronized(pcmData) {
-                        for (i in 0 until read) {
-                            pcmData.add(buffer[i])
-                        }
+                    synchronized(pcmOutputStream) {
+                        pcmOutputStream.write(buffer, 0, read)
                     }
                 }
             }
-        }.also { it.start() }
+        }
     }
 
+    @Synchronized
     fun stopRecording(): File? {
+        if (!isRecording) return null
+
         isRecording = false
         recordingThread?.join(2000)
         recordingThread = null
-        audioRecord?.stop()
+
+        try {
+            audioRecord?.stop()
+        } catch (_: IllegalStateException) {
+        }
         audioRecord?.release()
         audioRecord = null
 
-        if (pcmData.isEmpty()) return null
+        synchronized(pcmOutputStream) {
+            if (pcmOutputStream.size() == 0) return null
+        }
 
         return withContext(Dispatchers.IO) {
             val recordingsDir = File(context.filesDir, "recordings")
             recordingsDir.mkdirs()
             val wavFile = File(recordingsDir, "recording_${System.currentTimeMillis()}.wav")
 
-            synchronized(pcmData) {
-                val pcmArray = pcmData.toByteArray()
-                pcmData.clear()
+            synchronized(pcmOutputStream) {
+                val pcmArray = pcmOutputStream.toByteArray()
+                pcmOutputStream.reset()
                 AudioUtils.writeWavFile(wavFile, pcmArray, 16000, 1, 16)
             }
 
@@ -86,19 +101,27 @@ class AudioRecorderService @Inject constructor(
     }
 
     fun getRecordingDurationSeconds(): Double {
-        synchronized(pcmData) {
-            val bytesPerSecond = 16000 * 1 * 2
-            return pcmData.size.toDouble() / bytesPerSecond
-        }
+        val elapsed = System.currentTimeMillis() - startTimeMs
+        return elapsed / 1000.0
     }
 
+    @Synchronized
     fun cancelRecording() {
+        if (!isRecording) return
+
         isRecording = false
         recordingThread?.join(2000)
         recordingThread = null
-        audioRecord?.stop()
+
+        try {
+            audioRecord?.stop()
+        } catch (_: IllegalStateException) {
+        }
         audioRecord?.release()
         audioRecord = null
-        pcmData.clear()
+
+        synchronized(pcmOutputStream) {
+            pcmOutputStream.reset()
+        }
     }
 }

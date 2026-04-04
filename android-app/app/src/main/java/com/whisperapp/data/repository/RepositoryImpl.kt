@@ -21,6 +21,8 @@ class TranscriptionRepositoryImpl @Inject constructor(
 
     override fun getAllEntries(): Flow<List<TranscriptionEntry>> = dao.getAll()
 
+    override fun getEntryFlow(id: String): Flow<TranscriptionEntry?> = dao.observeById(id)
+
     override suspend fun getEntry(id: String): TranscriptionEntry? = dao.getById(id)
 
     override suspend fun insertEntry(entry: TranscriptionEntry) {
@@ -39,6 +41,8 @@ class TranscriptionRepositoryImpl @Inject constructor(
     override suspend fun deleteEntry(id: String) = dao.delete(id)
 
     override suspend fun deleteAllEntries() = dao.deleteAll()
+
+    override suspend fun recoverInterruptedEntries() = dao.recoverInterruptedEntries()
 
     private suspend fun trimHistory() {
         val count = dao.count()

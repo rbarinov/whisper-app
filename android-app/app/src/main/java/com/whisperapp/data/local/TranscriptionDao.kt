@@ -15,6 +15,9 @@ interface TranscriptionDao {
     @Query("SELECT * FROM transcription_entries WHERE id = :id")
     suspend fun getById(id: String): TranscriptionEntry?
 
+    @Query("SELECT * FROM transcription_entries WHERE id = :id")
+    fun observeById(id: String): Flow<TranscriptionEntry?>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(entry: TranscriptionEntry)
 
@@ -32,4 +35,7 @@ interface TranscriptionDao {
 
     @Query("SELECT COUNT(*) FROM transcription_entries")
     suspend fun count(): Int
+
+    @Query("UPDATE transcription_entries SET status = 'FAILED', errorMessage = 'Interrupted by app restart' WHERE status IN ('RECORDING', 'TRANSCRIBING', 'PROCESSING')")
+    suspend fun recoverInterruptedEntries()
 }
