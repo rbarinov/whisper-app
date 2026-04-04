@@ -1,5 +1,6 @@
 import Foundation
 import AVFoundation
+import SharedKit
 
 struct RecordingResult {
     let fileURL: URL

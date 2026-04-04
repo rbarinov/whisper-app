@@ -3,7 +3,7 @@ import Foundation
 public struct TranscriptionEntry: Identifiable, Codable, Equatable, Sendable {
     public let id: UUID
     public let timestamp: Date
-    public let durationSeconds: Double
+    public var durationSeconds: Double
     public var text: String?
     public var rawText: String?
     public var status: TranscriptionStatus
