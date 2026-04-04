@@ -1,5 +1,6 @@
 package com.whisperapp.domain.service
 
+import android.util.Log
 import com.google.gson.Gson
 import com.whisperapp.data.provider.LLMStreamToken
 import com.whisperapp.data.provider.ProviderError
@@ -33,6 +34,9 @@ class TranscriptionService @Inject constructor(
     private val whisperApi: WhisperApi,
     private val gson: Gson
 ) {
+    companion object {
+        private const val TAG = "TranscriptionService"
+    }
     suspend fun transcribe(
         audioFile: File,
         settings: AppSettings
@@ -93,6 +97,9 @@ class LlmService @Inject constructor(
     private val llmApi: LlmApi,
     private val gson: Gson
 ) {
+    companion object {
+        private const val TAG = "LlmService"
+    }
     suspend fun processText(text: String, settings: AppSettings): String {
         validateLlmConfig(settings)
 
@@ -124,11 +131,11 @@ class LlmService @Inject constructor(
     fun processTextStream(text: String, settings: AppSettings): Flow<LLMStreamToken> {
         validateLlmConfig(settings)
 
-        return flow {
-            val request = buildRequest(text, settings, stream = true)
-            val url = "${settings.effectiveLlmApiBaseUrl}/chat/completions"
+        val request = buildRequest(text, settings, stream = true)
+        val url = "${settings.effectiveLlmApiBaseUrl}/chat/completions"
 
-            retryWithBackoff(
+        return flow {
+            val responseBody = retryWithBackoff(
                 block = {
                     val response = llmApi.chatCompletionStream(
                         url = url,
@@ -140,39 +147,40 @@ class LlmService @Inject constructor(
                         throw ProviderError.ApiError(response.code(), errorBody)
                     }
 
-                    val responseBody = response.body()
+                    response.body()
                         ?: throw ProviderError.DecodingError("Empty response body")
-
-                    val source = responseBody.source()
-                    while (!source.exhausted() && currentCoroutineContext().isActive) {
-                        val line = source.readUtf8Line() ?: continue
-
-                        if (line.startsWith(":")) continue
-                        if (line.isBlank()) continue
-                        if (line == "data: [DONE]") break
-                        if (!line.startsWith("data: ")) continue
-
-                        val json = line.removePrefix("data: ")
-                        try {
-                            val chunk = gson.fromJson(json, StreamChunk::class.java)
-                            chunk.choices?.firstOrNull()?.delta?.let { delta ->
-                                val reasoning = delta.reasoningContent ?: delta.reasoning
-                                if (!reasoning.isNullOrBlank()) {
-                                    emit(LLMStreamToken.Reasoning(reasoning))
-                                }
-                                if (!delta.content.isNullOrBlank()) {
-                                    emit(LLMStreamToken.Content(delta.content))
-                                }
-                            }
-                        } catch (_: Exception) {
-                        }
-                    }
                 },
                 options = RetryOptions(
                     maxRetries = AppConstants.MAX_RETRIES,
                     shouldRetry = ::shouldRetryProvider
                 )
             )
+
+            val source = responseBody.source()
+            while (!source.exhausted() && currentCoroutineContext().isActive) {
+                val line = source.readUtf8Line() ?: continue
+
+                if (line.startsWith(":")) continue
+                if (line.isBlank()) continue
+                if (line == "data: [DONE]") break
+                if (!line.startsWith("data: ")) continue
+
+                val json = line.removePrefix("data: ")
+                try {
+                    val chunk = gson.fromJson(json, StreamChunk::class.java)
+                    chunk.choices?.firstOrNull()?.delta?.let { delta ->
+                        val reasoning = delta.reasoningContent ?: delta.reasoning
+                        if (!reasoning.isNullOrBlank()) {
+                            emit(LLMStreamToken.Reasoning(reasoning))
+                        }
+                        if (!delta.content.isNullOrBlank()) {
+                            emit(LLMStreamToken.Content(delta.content))
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to parse SSE chunk: $json", e)
+                }
+            }
         }.flowOn(Dispatchers.IO)
     }
 

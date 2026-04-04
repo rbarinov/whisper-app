@@ -1,5 +1,6 @@
 package com.whisperapp.util
 
+import android.util.Log
 import com.whisperapp.util.AppConstants.MAX_RETRIES
 import com.whisperapp.util.AppConstants.RETRY_DELAYS_MS
 import retrofit2.HttpException
@@ -39,14 +40,20 @@ suspend fun <T> retryWithBackoff(
             }
 
             lastError = e
+            val delay = options.delayMs.getOrElse(attempt) { options.delayMs.last() }
+            Log.d(
+                "Retry",
+                "Attempt ${attempt + 1}/${options.maxRetries} failed: ${e.message}. " +
+                    "Retrying in ${delay}ms..."
+            )
 
             if (attempt < options.maxRetries - 1) {
-                val delay = options.delayMs.getOrElse(attempt) { options.delayMs.last() }
                 kotlinx.coroutines.delay(delay)
             }
         }
     }
 
+    Log.w("Retry", "All ${options.maxRetries} attempts exhausted. Last error: ${lastError?.message}")
     throw lastError ?: RuntimeException("Retry exhausted without error")
 }
 
