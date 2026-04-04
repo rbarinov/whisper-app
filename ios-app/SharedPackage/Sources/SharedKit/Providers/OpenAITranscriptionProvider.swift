@@ -27,8 +27,9 @@ public final class OpenAITranscriptionProvider: TranscriptionProvider, Sendable 
         request.httpBody = body
         request.timeoutInterval = AppConstants.whisperTimeoutMs / 1000
 
+        let finalRequest = request
         return try await RetryService.retryWithBackoff {
-            let (data, response) = try await self.session.data(for: request)
+            let (data, response) = try await self.session.data(for: finalRequest)
 
             guard let httpResponse = response as? HTTPURLResponse else {
                 throw ProviderError.networkError("Invalid response")

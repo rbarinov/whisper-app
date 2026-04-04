@@ -107,7 +107,7 @@ public final class OpenAILLMProvider: LLMProvider, Sendable {
 
                     if httpResponse.statusCode != 200 {
                         var errorBody = ""
-                        for try await line in bytes {
+                        for try await line in bytes.lines {
                             errorBody += line
                         }
                         continuation.finish(throwing: ProviderError.apiError(
@@ -117,7 +117,7 @@ public final class OpenAILLMProvider: LLMProvider, Sendable {
                         return
                     }
 
-                    for try await line in bytes {
+                    for try await line in bytes.lines {
                         let trimmed = line.trimmingCharacters(in: .whitespaces)
                         if trimmed.isEmpty || trimmed.hasPrefix(":") { continue }
                         if trimmed == "data: [DONE]" { continue }
