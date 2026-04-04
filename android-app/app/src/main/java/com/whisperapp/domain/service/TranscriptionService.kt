@@ -15,16 +15,19 @@ import com.whisperapp.util.RetryOptions
 import com.whisperapp.util.defaultShouldRetry
 import com.whisperapp.util.retryWithBackoff
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.withTimeout
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.File
+import java.io.IOException
 import java.net.URL
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -156,29 +159,44 @@ class LlmService @Inject constructor(
                 )
             )
 
-            val source = responseBody.source()
-            while (!source.exhausted() && currentCoroutineContext().isActive) {
-                val line = source.readUtf8Line() ?: continue
+            responseBody.use { body ->
+                val source = body.source()
 
-                if (line.startsWith(":")) continue
-                if (line.isBlank()) continue
-                if (line == "data: [DONE]") break
-                if (!line.startsWith("data: ")) continue
-
-                val json = line.removePrefix("data: ")
                 try {
-                    val chunk = gson.fromJson(json, StreamChunk::class.java)
-                    chunk.choices?.firstOrNull()?.delta?.let { delta ->
-                        val reasoning = delta.reasoningContent ?: delta.reasoning
-                        if (!reasoning.isNullOrBlank()) {
-                            emit(LLMStreamToken.Reasoning(reasoning))
-                        }
-                        if (!delta.content.isNullOrBlank()) {
-                            emit(LLMStreamToken.Content(delta.content))
+                    while (currentCoroutineContext().isActive) {
+                        val line = withTimeout(AppConstants.LLM_TIMEOUT_MS) {
+                            if (source.exhausted()) null else source.readUtf8Line()
+                        } ?: break
+
+                        if (line.startsWith(":")) continue
+                        if (line.isBlank()) continue
+                        if (line == "data: [DONE]") break
+                        if (!line.startsWith("data: ")) continue
+
+                        val json = line.removePrefix("data: ")
+                        try {
+                            val chunk = gson.fromJson(json, StreamChunk::class.java)
+                            chunk.choices?.firstOrNull()?.delta?.let { delta ->
+                                val reasoning = delta.reasoningContent ?: delta.reasoning
+                                if (!reasoning.isNullOrBlank()) {
+                                    emit(LLMStreamToken.Reasoning(reasoning))
+                                }
+                                if (!delta.content.isNullOrBlank()) {
+                                    emit(LLMStreamToken.Content(delta.content))
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Failed to parse SSE chunk: ${sanitizeSsePayload(json)}", e)
                         }
                     }
-                } catch (e: Exception) {
-                    Log.w(TAG, "Failed to parse SSE chunk: $json", e)
+                } catch (e: TimeoutCancellationException) {
+                    throw ProviderError.NetworkError(
+                        "LLM stream idle timeout after ${AppConstants.LLM_TIMEOUT_MS}ms"
+                    )
+                } catch (e: IOException) {
+                    throw ProviderError.NetworkError(
+                        "LLM stream interrupted: ${e.message ?: "unknown I/O error"}"
+                    )
                 }
             }
         }.flowOn(Dispatchers.IO)
@@ -206,6 +224,17 @@ class LlmService @Inject constructor(
             ),
             stream = stream
         )
+    }
+
+    private fun sanitizeSsePayload(payload: String): String {
+        val maxLength = 50
+        val normalized = payload.replace('\n', ' ').replace('\r', ' ')
+        val preview = normalized.take(maxLength)
+        return if (normalized.length > maxLength) {
+            "len=${normalized.length}, preview=${preview}..."
+        } else {
+            "len=${normalized.length}, preview=${preview}"
+        }
     }
 }
 
