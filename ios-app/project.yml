@@ -1,0 +1,72 @@
+name: WhisperApp
+options:
+  bundleIdPrefix: com.whisperapp
+  deploymentTarget:
+    iOS: "16.0"
+  xcodeVersion: "15.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+
+packages:
+  SharedKit:
+    path: SharedPackage
+
+targets:
+  WhisperApp:
+    type: application
+    platform: iOS
+    sources:
+      - path: WhisperApp
+        excludes:
+          - Info.plist
+    settings:
+      base:
+        INFOPLIST_FILE: WhisperApp/Info.plist
+        CODE_SIGN_ENTITLEMENTS: WhisperApp/WhisperApp.entitlements
+        PRODUCT_BUNDLE_IDENTIFIER: com.whisperapp.app
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        SWIFT_VERSION: "5.9"
+        TARGETED_DEVICE_FAMILY: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        GENERATE_INFOPLIST_FILE: false
+        ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES: "YES"
+      configs:
+        Debug:
+          SWIFT_OPTIMIZATION_LEVEL: "-Onone"
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: "DEBUG"
+        Release:
+          SWIFT_OPTIMIZATION_LEVEL: "-O"
+          SWIFT_COMPILATION_MODE: wholemodule
+    dependencies:
+      - target: WhisperKeyboard
+        embed: true
+        codeSign: true
+      - package: SharedKit
+
+  WhisperKeyboard:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: WhisperKeyboard
+        excludes:
+          - Info.plist
+    settings:
+      base:
+        INFOPLIST_FILE: WhisperKeyboard/Info.plist
+        CODE_SIGN_ENTITLEMENTS: WhisperKeyboard/WhisperKeyboard.entitlements
+        PRODUCT_BUNDLE_IDENTIFIER: com.whisperapp.app.keyboard
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        SWIFT_VERSION: "5.9"
+        TARGETED_DEVICE_FAMILY: "1"
+        GENERATE_INFOPLIST_FILE: false
+      configs:
+        Debug:
+          SWIFT_OPTIMIZATION_LEVEL: "-Onone"
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: "DEBUG"
+        Release:
+          SWIFT_OPTIMIZATION_LEVEL: "-O"
+          SWIFT_COMPILATION_MODE: wholemodule
+    dependencies:
+      - package: SharedKit
