@@ -141,10 +141,11 @@ fun WhisperAppContent(settingsRepository: SettingsRepository) {
                 RecordingScreen(viewModel = hiltViewModel())
             }
 
-            composable(Routes.HISTORY) {
+            composable(Routes.HISTORY) { backStackEntry ->
+                val historyViewModel: HistoryViewModel = hiltViewModel()
                 HistoryScreen(
-                    viewModel = hiltViewModel(),
-                    onEntryClick = { entryId ->
+                    viewModel = historyViewModel,
+                    onEntryClick = { entryId: String ->
                         navController.navigate(Routes.historyDetail(entryId))
                     }
                 )
@@ -155,7 +156,7 @@ fun WhisperAppContent(settingsRepository: SettingsRepository) {
                 arguments = listOf(
                     navArgument("entryId") { type = NavType.StringType }
                 )
-            ) {
+            ) { _ ->
                 val detailViewModel: HistoryDetailViewModel = hiltViewModel()
                 val entry by detailViewModel.entry.collectAsState()
 
