@@ -13,9 +13,6 @@ import com.whisperapp.data.repository.SettingsRepositoryImpl
 import com.whisperapp.data.repository.TranscriptionRepositoryImpl
 import com.whisperapp.domain.repository.SettingsRepository
 import com.whisperapp.domain.repository.TranscriptionRepository
-import com.whisperapp.domain.service.AudioRecorderService
-import com.whisperapp.domain.service.LlmService
-import com.whisperapp.domain.service.TranscriptionService
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -90,21 +87,4 @@ object AppModule {
     @Singleton
     fun provideSettingsRepository(impl: SettingsRepositoryImpl): SettingsRepository = impl
 
-    @Provides
-    @Singleton
-    fun provideKeyboardViewModelFactory(
-        audioRecorderService: AudioRecorderService,
-        transcriptionService: TranscriptionService,
-        llmService: LlmService,
-        transcriptionRepository: TranscriptionRepository,
-        settingsRepository: SettingsRepository
-    ): KeyboardViewModelFactory {
-        return KeyboardViewModelFactory(
-            audioRecorderService = audioRecorderService,
-            transcriptionService = transcriptionService,
-            llmService = llmService,
-            transcriptionRepository = transcriptionRepository,
-            settingsRepository = settingsRepository
-        )
-    }
 }

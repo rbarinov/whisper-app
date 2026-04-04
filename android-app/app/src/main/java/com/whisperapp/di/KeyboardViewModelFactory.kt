@@ -8,8 +8,9 @@ import com.whisperapp.domain.service.AudioRecorderService
 import com.whisperapp.domain.service.LlmService
 import com.whisperapp.domain.service.TranscriptionService
 import com.whisperapp.ime.KeyboardViewModel
+import javax.inject.Inject
 
-class KeyboardViewModelFactory(
+class KeyboardViewModelFactory @Inject constructor(
     private val audioRecorderService: AudioRecorderService,
     private val transcriptionService: TranscriptionService,
     private val llmService: LlmService,
