@@ -12,6 +12,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var llmApiKey: String
     public var llmModelName: String
     public var llmSystemPrompt: String
+    public var autoCopyToClipboard: Bool
     public var onboardingCompleted: Bool
 
     public init(
@@ -32,6 +33,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         llmApiKey: String = "",
         llmModelName: String = AppConstants.defaultLLMModelName,
         llmSystemPrompt: String = AppConstants.defaultLLMSystemPrompt,
+        autoCopyToClipboard: Bool = true,
         onboardingCompleted: Bool = false
     ) {
         self.apiBaseURL = apiBaseURL
@@ -45,6 +47,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         self.llmApiKey = llmApiKey
         self.llmModelName = llmModelName
         self.llmSystemPrompt = llmSystemPrompt
+        self.autoCopyToClipboard = autoCopyToClipboard
         self.onboardingCompleted = onboardingCompleted
     }
 }

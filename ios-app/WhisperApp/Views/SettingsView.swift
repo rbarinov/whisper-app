@@ -14,6 +14,7 @@ struct SettingsView: View {
             Form {
                 sttSection
                 llmSection
+                behaviorSection
                 aboutSection
             }
             .navigationTitle("Settings")
@@ -106,6 +107,19 @@ struct SettingsView: View {
             if settings.llmPostProcessingEnabled {
                 Text("Optional cleanup step after transcription. Leave base URL and API key blank to use the STT endpoint settings.")
             }
+        }
+    }
+
+    private var behaviorSection: some View {
+        Section {
+            Toggle("Auto-copy to Clipboard", isOn: Binding(
+                get: { settings.autoCopyToClipboard },
+                set: { appState.settings.autoCopyToClipboard = $0; appState.saveSettings() }
+            ))
+        } header: {
+            Text("Behavior")
+        } footer: {
+            Text("Automatically copy transcription results to the clipboard.")
         }
     }
 

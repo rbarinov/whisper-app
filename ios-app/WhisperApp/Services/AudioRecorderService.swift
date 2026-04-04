@@ -114,9 +114,11 @@ final class AudioRecorderService {
     }
 
     static func recordingsDirectory() -> URL {
-        let appGroupURL = FileManager.default.containerURL(
+        guard let appGroupURL = FileManager.default.containerURL(
             forSecurityApplicationGroupIdentifier: AppConstants.appGroupIdentifier
-        )!
+        ) else {
+            return FileManager.default.temporaryDirectory.appendingPathComponent("recordings")
+        }
         return appGroupURL.appendingPathComponent("recordings")
     }
 

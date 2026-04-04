@@ -154,16 +154,9 @@ final class AppState: ObservableObject {
         }
 
         if result.duration < AppConstants.minRecordingDurationS {
-            if let relativePath = historyManager.saveAudioFile(wavData: result.wavData, for: entryId) {
-                updateHistoryEntry(id: entryId) { e in
-                    e.status = .cancelled
-                    e.durationSeconds = result.duration
-                    e.audioFilePath = relativePath
-                }
-            } else {
-                updateHistoryEntry(id: entryId) { e in
-                    e.status = .cancelled
-                }
+            updateHistoryEntry(id: entryId) { e in
+                e.status = .cancelled
+                e.durationSeconds = result.duration
             }
             activeEntryId = nil
             recordingState = .idle
@@ -321,7 +314,9 @@ final class AppState: ObservableObject {
             e.errorMessage = errorMessage
         }
 
-        UIPasteboard.general.string = finalText
+        if settings.autoCopyToClipboard {
+            UIPasteboard.general.string = finalText
+        }
         storage.saveLatestTranscription(text: finalText, entryId: entryId)
         storage.saveHostRecordingState("idle")
 
@@ -381,9 +376,11 @@ struct ContentView: View {
     }
 
     private func handleURL(_ url: URL) {
-        guard url.scheme == "whisperapp" else { return }
+        guard url.scheme == "whisperapp",
+              let host = url.host,
+              !host.isEmpty else { return }
 
-        switch url.host {
+        switch host {
         case "record":
             appState.isKeyboardTriggeredRecording = true
         default:

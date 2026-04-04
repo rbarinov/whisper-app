@@ -47,23 +47,26 @@ final class KeyboardViewModel {
 
         state = .requestingHostApp
 
-        var responder: UIResponder? = vc
-        while let r = responder {
-            if let app = r as? UIApplication {
-                app.open(url, options: [:]) { [weak self] success in
-                    if success {
-                        self?.state = .waitingForResult
-                        self?.startPolling()
-                    } else {
-                        self?.state = .error(message: "Could not open Whisper App")
-                    }
-                }
-                return
-            }
-            responder = r.next
+        let opened = openURL(from: vc, url: url)
+        if opened {
+            state = .waitingForResult
+            startPolling()
+        } else {
+            state = .error(message: "Could not open Whisper App")
         }
+    }
 
-        state = .error(message: "Could not open Whisper App")
+    private func openURL(from responder: UIResponder, url: URL) -> Bool {
+        var current: UIResponder? = responder
+        while let r = current {
+            let selector = sel_registerName("openURL:")
+            if r.responds(to: selector) {
+                r.perform(selector, with: url)
+                return true
+            }
+            current = r.next
+        }
+        return false
     }
 
     func checkForExistingResult() {
