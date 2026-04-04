@@ -1,6 +1,7 @@
 package com.whisperapp
 
 import android.app.Application
+import com.whisperapp.data.remote.ApiKeyInterceptor
 import com.whisperapp.domain.repository.SettingsRepository
 import com.whisperapp.domain.repository.TranscriptionRepository
 import com.whisperapp.domain.service.AudioRecorderService
@@ -21,12 +22,14 @@ class WhisperApplication : Application() {
     @Inject lateinit var audioRecorderService: AudioRecorderService
     @Inject lateinit var transcriptionRepository: TranscriptionRepository
     @Inject lateinit var settingsRepository: SettingsRepository
+    @Inject lateinit var apiKeyInterceptor: ApiKeyInterceptor
 
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onCreate() {
         super.onCreate()
         applicationScope.launch {
+            apiKeyInterceptor.refreshKeys()
             transcriptionRepository.recoverInterruptedEntries()
         }
     }

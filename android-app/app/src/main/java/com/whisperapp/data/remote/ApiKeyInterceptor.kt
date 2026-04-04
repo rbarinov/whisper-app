@@ -1,7 +1,6 @@
 package com.whisperapp.data.remote
 
 import com.whisperapp.data.settings.SecureStorage
-import kotlinx.coroutines.runBlocking
 import okhttp3.Interceptor
 import okhttp3.Response
 import javax.inject.Inject
@@ -12,20 +11,21 @@ class ApiKeyInterceptor @Inject constructor(
     private val secureStorage: SecureStorage
 ) : Interceptor {
 
+    @Volatile private var cachedMainKey: String? = null
+    @Volatile private var cachedLlmKey: String? = null
+
+    init {
+        refreshKeys()
+    }
+
     override fun intercept(chain: Interceptor.Chain): Response {
         val originalRequest = chain.request()
         val url = originalRequest.url
         val isChatEndpoint = url.encodedPath.contains("chat/completions")
 
-        val keys = runBlocking {
-            val llmKey = secureStorage.loadString(SecureStorage.LLM_API_KEY)
-            val mainKey = secureStorage.loadString(SecureStorage.API_KEY)
-            Pair(mainKey, llmKey)
-        }
-
         val apiKey = when {
-            isChatEndpoint -> keys.second?.ifEmpty { keys.first } ?: keys.first
-            else -> keys.first
+            isChatEndpoint -> cachedLlmKey?.ifEmpty { cachedMainKey } ?: cachedMainKey
+            else -> cachedMainKey
         }
 
         return if (!apiKey.isNullOrEmpty()) {
@@ -36,5 +36,10 @@ class ApiKeyInterceptor @Inject constructor(
         } else {
             chain.proceed(originalRequest)
         }
+    }
+
+    fun refreshKeys() {
+        cachedMainKey = secureStorage.loadString(SecureStorage.API_KEY)
+        cachedLlmKey = secureStorage.loadString(SecureStorage.LLM_API_KEY)
     }
 }

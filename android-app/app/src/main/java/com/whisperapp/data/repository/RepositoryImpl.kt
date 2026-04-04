@@ -3,6 +3,7 @@ package com.whisperapp.data.repository
 import android.content.Context
 import com.whisperapp.data.local.TranscriptionDao
 import com.whisperapp.data.preferences.SettingsDataStore
+import com.whisperapp.data.remote.ApiKeyInterceptor
 import com.whisperapp.data.settings.SecureStorage
 import com.whisperapp.domain.model.AppSettings
 import com.whisperapp.domain.model.TranscriptionEntry
@@ -57,10 +58,11 @@ class TranscriptionRepositoryImpl @Inject constructor(
 @Singleton
 class SettingsRepositoryImpl @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val secureStorage: SecureStorage
+    private val secureStorage: SecureStorage,
+    private val apiKeyInterceptor: ApiKeyInterceptor
 ) : SettingsRepository {
 
-    private val dataStore = SettingsDataStore(context, secureStorage)
+    private val dataStore = SettingsDataStore(context, secureStorage, apiKeyInterceptor)
 
     override val settings: Flow<AppSettings> = dataStore.settings
 

@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.whisperapp.data.remote.ApiKeyInterceptor
 import com.whisperapp.data.settings.SecureStorage
 import com.whisperapp.domain.model.AppSettings
 import com.whisperapp.util.AppConstants
@@ -17,7 +18,8 @@ private val Context.settingsDataStore: DataStore<Preferences> by preferencesData
 
 class SettingsDataStore(
     private val context: Context,
-    private val secureStorage: SecureStorage
+    private val secureStorage: SecureStorage,
+    private val apiKeyInterceptor: ApiKeyInterceptor
 ) {
 
     companion object {
@@ -62,6 +64,8 @@ class SettingsDataStore(
             if (updated.llmApiKey.isNotEmpty()) {
                 secureStorage.saveString(SecureStorage.LLM_API_KEY, updated.llmApiKey)
             }
+
+            apiKeyInterceptor.refreshKeys()
 
             // Store non-sensitive settings in DataStore
             prefs[KEY_API_BASE_URL] = updated.apiBaseUrl
