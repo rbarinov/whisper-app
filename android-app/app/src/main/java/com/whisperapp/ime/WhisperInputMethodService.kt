@@ -8,6 +8,7 @@ import androidx.compose.ui.platform.ComposeView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.setViewTreeLifecycleOwner
@@ -16,25 +17,9 @@ import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
-import com.whisperapp.domain.repository.SettingsRepository
-import com.whisperapp.domain.repository.TranscriptionRepository
-import com.whisperapp.domain.service.AudioRecorderService
-import com.whisperapp.domain.service.LlmService
-import com.whisperapp.domain.service.TranscriptionService
+import com.whisperapp.di.ImeServiceEntryPoint
 import com.whisperapp.ime.ui.KeyboardScreen
-import dagger.hilt.EntryPoint
-import dagger.hilt.InstallIn
-import dagger.hilt.components.SingletonComponent
-
-@EntryPoint
-@InstallIn(SingletonComponent::class)
-interface ImeServiceEntryPoint {
-    fun audioRecorderService(): AudioRecorderService
-    fun transcriptionService(): TranscriptionService
-    fun llmService(): LlmService
-    fun transcriptionRepository(): TranscriptionRepository
-    fun settingsRepository(): SettingsRepository
-}
+import dagger.hilt.EntryPointAccessors
 
 class WhisperInputMethodService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner,
     SavedStateRegistryOwner {
@@ -47,24 +32,19 @@ class WhisperInputMethodService : InputMethodService(), LifecycleOwner, ViewMode
     override val savedStateRegistry: SavedStateRegistry
         get() = savedStateRegistryController.savedStateRegistry
 
-    private lateinit var viewModel: KeyboardViewModel
+    private val viewModel: KeyboardViewModel by lazy {
+        val entryPoint = EntryPointAccessors.fromApplication(
+            application, ImeServiceEntryPoint::class.java
+        )
+        ViewModelProvider(store, entryPoint.keyboardViewModelFactory())[KeyboardViewModel::class.java]
+    }
+
     private var composeView: ComposeView? = null
 
     override fun onCreate() {
         super.onCreate()
         savedStateRegistryController.performRestore(null)
         lifecycleRegistry.currentState = Lifecycle.State.CREATED
-
-        val entryPoint = dagger.hilt.EntryPointAccessors.fromApplication(
-            application, ImeServiceEntryPoint::class.java
-        )
-        viewModel = KeyboardViewModel(
-            audioRecorderService = entryPoint.audioRecorderService(),
-            transcriptionService = entryPoint.transcriptionService(),
-            llmService = entryPoint.llmService(),
-            transcriptionRepository = entryPoint.transcriptionRepository(),
-            settingsRepository = entryPoint.settingsRepository()
-        )
     }
 
     override fun onBindInput() {
