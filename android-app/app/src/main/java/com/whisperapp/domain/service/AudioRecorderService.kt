@@ -7,6 +7,7 @@ import android.media.MediaRecorder
 import com.whisperapp.util.AudioUtils
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -85,7 +86,7 @@ class AudioRecorderService @Inject constructor(
             if (pcmOutputStream.size() == 0) return null
         }
 
-        return withContext(Dispatchers.IO) {
+        return runBlocking(Dispatchers.IO) {
             val recordingsDir = File(context.filesDir, "recordings")
             recordingsDir.mkdirs()
             val wavFile = File(recordingsDir, "recording_${System.currentTimeMillis()}.wav")

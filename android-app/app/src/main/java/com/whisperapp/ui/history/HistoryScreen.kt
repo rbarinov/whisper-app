@@ -223,6 +223,7 @@ private fun StatusIndicator(status: TranscriptionStatus) {
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryDetailScreen(
     entry: TranscriptionEntry?,
@@ -265,7 +266,7 @@ fun HistoryDetailScreen(
                                 putExtra(android.content.Intent.EXTRA_TEXT, text)
                                 type = "text/plain"
                             }
-                            context.startActivity(Intent.createChooser(intent, "Share"))
+                            context.startActivity(android.content.Intent.createChooser(intent, "Share"))
                         }) {
                             Icon(Icons.Default.Share, contentDescription = "Share")
                         }

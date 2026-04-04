@@ -24,7 +24,7 @@ class ApiKeyInterceptor @Inject constructor(
         }
 
         val apiKey = when {
-            isChatEndpoint -> keys.second.ifEmpty { keys.first }
+            isChatEndpoint -> keys.second?.ifEmpty { keys.first } ?: keys.first
             else -> keys.first
         }
 

@@ -1,7 +1,6 @@
 package com.whisperapp.ime
 
 import android.inputmethodservice.InputMethodService
-import android.os.IBinder
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import androidx.compose.material3.MaterialTheme
@@ -48,9 +47,9 @@ class WhisperInputMethodService : InputMethodService(), LifecycleOwner, ViewMode
         )
     }
 
-    override fun onBindInput(): IBinder? {
+    override fun onBindInput() {
+        super.onBindInput()
         lifecycleRegistry.currentState = Lifecycle.State.STARTED
-        return super.onBindInput()
     }
 
     override fun onStartInput(attribute: EditorInfo?, restarting: Boolean) {

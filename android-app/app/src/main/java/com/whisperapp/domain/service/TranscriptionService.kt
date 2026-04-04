@@ -17,6 +17,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
@@ -143,7 +144,7 @@ class LlmService @Inject constructor(
                         ?: throw ProviderError.DecodingError("Empty response body")
 
                     val source = responseBody.source()
-                    while (!source.exhausted() && isActive) {
+                    while (!source.exhausted() && currentCoroutineContext().isActive) {
                         val line = source.readUtf8Line() ?: continue
 
                         if (line.startsWith(":")) continue
